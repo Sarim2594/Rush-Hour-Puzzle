@@ -1,0 +1,14 @@
+{
+  "id": "easy_starter",
+  "name": "Easy Starter",
+  "difficulty": "Easy",
+  "vehicles": [
+    {"id": "X", "row": 2, "col": 1, "length": 2, "orientation": "H", "is_red": true},
+    {"id": "A", "row": 0, "col": 0, "length": 2, "orientation": "V"},
+    {"id": "B", "row": 0, "col": 3, "length": 3, "orientation": "V"},
+    {"id": "C", "row": 1, "col": 4, "length": 2, "orientation": "H"},
+    {"id": "D", "row": 3, "col": 0, "length": 3, "orientation": "H"},
+    {"id": "E", "row": 4, "col": 2, "length": 2, "orientation": "V"},
+    {"id": "F", "row": 4, "col": 4, "length": 2, "orientation": "H"}
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "id": "gridlock",
+  "name": "Gridlock",
+  "difficulty": "Medium",
+  "vehicles": [
+    {"id": "X", "row": 2, "col": 1, "length": 2, "orientation": "H", "is_red": true},
+    {"id": "A", "row": 0, "col": 0, "length": 3, "orientation": "V"},
+    {"id": "B", "row": 0, "col": 1, "length": 2, "orientation": "H"},
+    {"id": "C", "row": 0, "col": 4, "length": 2, "orientation": "V"},
+    {"id": "D", "row": 1, "col": 3, "length": 3, "orientation": "V"},
+    {"id": "E", "row": 1, "col": 5, "length": 2, "orientation": "V"},
+    {"id": "F", "row": 3, "col": 0, "length": 2, "orientation": "H"},
+    {"id": "G", "row": 4, "col": 2, "length": 2, "orientation": "H"},
+    {"id": "H", "row": 4, "col": 4, "length": 2, "orientation": "H"},
+    {"id": "I", "row": 5, "col": 1, "length": 3, "orientation": "H"}
+  ]
+}
