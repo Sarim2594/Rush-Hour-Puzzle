@@ -175,15 +175,19 @@ def layout_buttons_in_rect(
     min_width: int = 86,
     max_width: int = 170,
     gap: int = 10,
+    fixed_height: int | None = None,
+    max_columns: int | None = None,
 ) -> None:
     count = max(1, len(buttons))
     columns = count if rect.width >= count * (min_width + gap) - gap else max(2, rect.width // max(min_width + gap, 1))
     columns = min(columns, count)
+    if max_columns is not None:
+        columns = min(columns, max_columns)
     rows = math.ceil(count / columns)
     button_w = clamp((rect.width - gap * max(0, columns - 1)) // columns, min_width, max_width)
     total_w = button_w * columns + gap * max(0, columns - 1)
     start_x = rect.x + max(0, (rect.width - total_w) // 2)
-    button_h = max(42, (rect.height - gap * max(0, rows - 1)) // rows)
+    button_h = fixed_height if fixed_height is not None else max(42, (rect.height - gap * max(0, rows - 1)) // rows)
     for index, button in enumerate(buttons):
         row = index // columns
         col = index % columns
@@ -296,7 +300,7 @@ class Button:
     text_color: tuple[int, int, int] = WHITE
 
     def _fit_label(self, fonts: dict[str, pygame.font.Font], max_width: int) -> pygame.Surface:
-        candidates = [fonts["button"], fonts["small"], fonts["tiny"]]
+        candidates = [fonts["button"], fonts["tiny"]]
         for font in candidates:
             rendered = font.render(self.label, True, self.text_color)
             if rendered.get_width() <= max_width:
@@ -327,6 +331,68 @@ class Button:
     def handle_event(self, event: pygame.event.Event) -> str | None:
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and self.rect.collidepoint(event.pos):
             return self.action
+        return None
+
+
+@dataclass
+class Dropdown:
+    label: str
+    rect: pygame.Rect
+    options: list[tuple[str, str]]
+    selected_value: str
+    expanded: bool = False
+    open_upward: bool = False
+
+    def selected_label(self) -> str:
+        for value, display in self.options:
+            if value == self.selected_value:
+                return display
+        return self.options[0][1] if self.options else ""
+
+    def option_rects(self) -> list[tuple[str, pygame.Rect]]:
+        rects: list[tuple[str, pygame.Rect]] = []
+        visible_options = [(value, display) for value, display in self.options if value != self.selected_value]
+        count = len(visible_options)
+        for index, (value, _display) in enumerate(visible_options):
+            if self.open_upward:
+                y = self.rect.y - (count - index) * (self.rect.height + 4)
+            else:
+                y = self.rect.bottom + index * (self.rect.height + 4)
+            rects.append((value, pygame.Rect(self.rect.x, y, self.rect.width, self.rect.height)))
+        return rects
+
+    def draw(self, surface: pygame.Surface, fonts: dict[str, pygame.font.Font], mouse_pos: tuple[int, int]) -> None:
+        label_surf = fonts["small"].render(self.label, True, MUTED)
+        surface.blit(label_surf, (self.rect.x, self.rect.y - 22))
+        hovered = self.rect.collidepoint(mouse_pos)
+        fill = _shade(PANEL_BG, -4) if hovered else PANEL_BG
+        pygame.draw.rect(surface, fill, self.rect, border_radius=8)
+        pygame.draw.rect(surface, PANEL_EDGE, self.rect, width=1, border_radius=8)
+        text = ellipsize_text(fonts["small"], self.selected_label(), self.rect.width - 34)
+        draw_text(surface, fonts["small"], text, TEXT, (self.rect.x + 12, self.rect.y + 10))
+        arrow = "v" if not self.expanded else "^"
+        draw_text(surface, fonts["small"], arrow, ACCENT_DARK, (self.rect.right - 18, self.rect.y + 10))
+        if self.expanded:
+            for value, option_rect in self.option_rects():
+                option_fill = (230, 238, 248) if option_rect.collidepoint(mouse_pos) else PANEL_BG
+                pygame.draw.rect(surface, option_fill, option_rect, border_radius=8)
+                pygame.draw.rect(surface, PANEL_EDGE, option_rect, width=1, border_radius=8)
+                option_text = next(display for opt_value, display in self.options if opt_value == value)
+                draw_text(surface, fonts["small"], option_text, TEXT, (option_rect.x + 12, option_rect.y + 10))
+
+    def handle_event(self, event: pygame.event.Event) -> str | None:
+        if event.type != pygame.MOUSEBUTTONDOWN or event.button != 1:
+            return None
+        if self.rect.collidepoint(event.pos):
+            self.expanded = not self.expanded
+            return None
+        if self.expanded:
+            for value, option_rect in self.option_rects():
+                if option_rect.collidepoint(event.pos):
+                    self.selected_value = value
+                    self.expanded = False
+                    return value
+            self.expanded = False
         return None
 
 

@@ -44,7 +44,6 @@ class EditorMode:
         self.vehicles: list[Vehicle] = [
             Vehicle(id=RED_VEHICLE_ID, row=2, col=0, length=2, orientation="H", is_red=True)
         ]
-        self.pending_kind = "normal"
         self.pending_orientation = "H"
         self.pending_length = 2
         self.selected_vehicle_id: str | None = None
@@ -64,7 +63,6 @@ class EditorMode:
                 [
                     ("Car", "car"),
                     ("Truck", "truck"),
-                    ("Red Car", "red"),
                     (self._orientation_button_label(), "toggle_orientation"),
                 ],
                 0,
@@ -97,20 +95,15 @@ class EditorMode:
             self.move_selected(row, col)
             return
 
-        if self.pending_kind == "red":
-            replacement = Vehicle(id=RED_VEHICLE_ID, row=row, col=col, length=2, orientation="H", is_red=True)
-            remaining = [vehicle for vehicle in self.vehicles if not vehicle.is_red]
-            candidate_list = remaining + [replacement]
-        else:
-            candidate = Vehicle(
-                id=self.next_vehicle_id(),
-                row=row,
-                col=col,
-                length=self.pending_length,
-                orientation=self.pending_orientation,
-                is_red=False,
-            )
-            candidate_list = self.vehicles + [candidate]
+        candidate = Vehicle(
+            id=self.next_vehicle_id(),
+            row=row,
+            col=col,
+            length=self.pending_length,
+            orientation=self.pending_orientation,
+            is_red=False,
+        )
+        candidate_list = self.vehicles + [candidate]
 
         try:
             Board(candidate_list, metadata={"id": self.puzzle_name, "name": self.puzzle_name.title()})
@@ -195,15 +188,9 @@ class EditorMode:
                 elif action == "clear":
                     self.clear()
                 elif action == "car":
-                    self.pending_kind = "normal"
                     self.pending_length = 2
                 elif action == "truck":
-                    self.pending_kind = "normal"
                     self.pending_length = 3
-                elif action == "red":
-                    self.pending_kind = "red"
-                    self.pending_orientation = "H"
-                    self.pending_length = 2
                 elif action == "toggle_orientation":
                     self.pending_orientation = "V" if self.pending_orientation == "H" else "H"
                 self._sync_orientation_button()
@@ -256,26 +243,20 @@ class EditorMode:
         sidebar = base.sidebar
         gap = base.chrome.gap
         config_h = measure_text_panel_height(6, top_padding=58, line_gap=26, bottom_padding=18)
-        saved_h = clamp(sidebar.height // 3, 180, 250)
-        buttons_h = 112 if sidebar.width < 460 else 110
-        message_h = 68
-        total_h = config_h + saved_h + buttons_h + message_h + gap * 3
-        if total_h > sidebar.height:
-            overflow = total_h - sidebar.height
-            saved_h = max(140, saved_h - overflow)
+        buttons_h = 96
+        buttons_gap = gap + 30
         config_rect = pygame.Rect(sidebar.x, sidebar.y, sidebar.width, config_h)
-        saved_rect = pygame.Rect(sidebar.x, config_rect.bottom + gap, sidebar.width, saved_h)
-        buttons_rect = pygame.Rect(sidebar.x, saved_rect.bottom + gap, sidebar.width, buttons_h)
-        message_rect = pygame.Rect(sidebar.x, buttons_rect.bottom + gap, sidebar.width, message_h)
-        if message_rect.bottom > sidebar.bottom:
-            message_rect.y = sidebar.bottom - message_rect.height
-            buttons_rect.y = message_rect.y - gap - buttons_rect.height
+        buttons_rect = pygame.Rect(sidebar.x, sidebar.bottom - buttons_h, sidebar.width, buttons_h)
+        saved_top = config_rect.bottom + gap
+        saved_height = buttons_rect.y - buttons_gap - saved_top
+        saved_h = min(380, max(0, saved_height))
+        saved_rect = pygame.Rect(sidebar.x, saved_top, sidebar.width, saved_h)
+        buttons_rect.y = sidebar.bottom - buttons_h
         return {
             "board": base.board,
             "config": config_rect,
             "saved": saved_rect,
             "buttons": buttons_rect,
-            "message": message_rect,
         }
 
     def draw(self, surface: pygame.Surface, fonts: dict[str, pygame.font.Font]) -> None:
@@ -301,11 +282,10 @@ class EditorMode:
         config_rect = layout["config"]
         panel_card(surface, config_rect)
         draw_panel_title(surface, fonts, config_rect, "Editor Settings")
-        add_mode = "Red car" if self.pending_kind == "red" else f"{self.pending_length}-tile vehicle"
         config_lines = [
             f"Name: {self.puzzle_name[:18]}",
             f"Selected: {self.selected_vehicle_id or '-'}",
-            f"Add mode: {add_mode}",
+            f"Add mode: {self.pending_length}-tile vehicle",
             f"Orientation: {self.pending_orientation}",
             "Type letters, numbers, _ or - to rename.",
             "Tip: click a vehicle, then click a new anchor cell.",
@@ -329,11 +309,15 @@ class EditorMode:
             pygame.draw.rect(surface, (205, 206, 198), rect, width=1, border_radius=6)
             draw_text(surface, fonts["small"], path.stem[:30], TEXT, (rect.x + 10, rect.y + 2))
 
-        layout_buttons_in_rect(self.buttons, layout["buttons"], min_width=64, max_width=160, gap=10)
-        message_rect = layout["message"]
-        panel_card(surface, message_rect)
-        message = self.message if len(self.message) <= 52 else f"{self.message[:49]}..."
-        draw_text(surface, fonts["small"], message, TEXT, (message_rect.x + 18, message_rect.y + 22))
+        layout_buttons_in_rect(
+            self.buttons,
+            layout["buttons"],
+            min_width=96,
+            max_width=170,
+            gap=10,
+            fixed_height=42,
+            max_columns=4,
+        )
 
         for button in self.buttons:
             button.draw(surface, fonts, mouse_pos)
