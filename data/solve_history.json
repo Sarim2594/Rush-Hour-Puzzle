@@ -1,24 +1,254 @@
 {
   "puzzles": {
+    "city_block": {
+      "best_moves": 11,
+      "best_time": 6.843,
+      "last_result": {
+        "timestamp": "2026-04-25T15:00:50",
+        "puzzle_id": "city_block",
+        "solved": true,
+        "moves": 11,
+        "elapsed_seconds": 8.112
+      }
+    },
     "already_one_move": {
       "best_moves": 1,
-      "best_time": 5.001,
+      "best_time": 5.0,
       "last_result": {
-        "timestamp": "2026-04-25T17:58:00",
+        "timestamp": "2026-04-25T16:42:05",
         "puzzle_id": "already_one_move",
         "solved": true,
         "moves": 1,
-        "elapsed_seconds": 5.001
+        "elapsed_seconds": 5.0
+      }
+    },
+    "easy_starter": {
+      "best_moves": 2,
+      "best_time": 1.868,
+      "last_result": {
+        "timestamp": "2026-04-25T15:00:36",
+        "puzzle_id": "easy_starter",
+        "solved": true,
+        "moves": 2,
+        "elapsed_seconds": 1.868
+      }
+    },
+    "expert_gauntlet": {
+      "best_moves": 7,
+      "best_time": 7.862,
+      "last_result": {
+        "timestamp": "2026-04-25T16:54:40",
+        "puzzle_id": "expert_gauntlet",
+        "solved": true,
+        "moves": 7,
+        "elapsed_seconds": 7.862
+      }
+    },
+    "gridlock": {
+      "best_moves": 5,
+      "best_time": 4.333,
+      "last_result": {
+        "timestamp": "2026-04-22T21:49:14",
+        "puzzle_id": "gridlock",
+        "solved": true,
+        "moves": 5,
+        "elapsed_seconds": 4.333
+      }
+    },
+    "hard_escape": {
+      "best_moves": 11,
+      "best_time": 8.685,
+      "last_result": {
+        "timestamp": "2026-04-24T20:01:24",
+        "puzzle_id": "hard_escape",
+        "solved": true,
+        "moves": 11,
+        "elapsed_seconds": 8.685
       }
     }
   },
   "entries": [
     {
-      "timestamp": "2026-04-25T17:58:00",
+      "timestamp": "2026-04-22T21:12:25",
+      "puzzle_id": "city_block",
+      "solved": true,
+      "moves": 49,
+      "elapsed_seconds": 90.866
+    },
+    {
+      "timestamp": "2026-04-22T21:16:02",
+      "puzzle_id": "city_block",
+      "solved": true,
+      "moves": 11,
+      "elapsed_seconds": 12.011
+    },
+    {
+      "timestamp": "2026-04-22T21:16:17",
+      "puzzle_id": "city_block",
+      "solved": true,
+      "moves": 14,
+      "elapsed_seconds": 8.432
+    },
+    {
+      "timestamp": "2026-04-22T21:21:50",
+      "puzzle_id": "already_one_move",
+      "solved": true,
+      "moves": 1,
+      "elapsed_seconds": 5.0
+    },
+    {
+      "timestamp": "2026-04-22T21:22:02",
+      "puzzle_id": "already_one_move",
+      "solved": true,
+      "moves": 1,
+      "elapsed_seconds": 5.0
+    },
+    {
+      "timestamp": "2026-04-22T21:27:40",
+      "puzzle_id": "city_block",
+      "solved": true,
+      "moves": 11,
+      "elapsed_seconds": 27.266
+    },
+    {
+      "timestamp": "2026-04-22T21:27:53",
+      "puzzle_id": "city_block",
+      "solved": true,
+      "moves": 11,
+      "elapsed_seconds": 6.843
+    },
+    {
+      "timestamp": "2026-04-22T21:30:57",
+      "puzzle_id": "easy_starter",
+      "solved": true,
+      "moves": 2,
+      "elapsed_seconds": 9.512
+    },
+    {
+      "timestamp": "2026-04-22T21:31:40",
+      "puzzle_id": "expert_gauntlet",
+      "solved": true,
+      "moves": 7,
+      "elapsed_seconds": 25.517
+    },
+    {
+      "timestamp": "2026-04-22T21:38:26",
+      "puzzle_id": "already_one_move",
+      "solved": true,
+      "moves": 1,
+      "elapsed_seconds": 5.0
+    },
+    {
+      "timestamp": "2026-04-22T21:49:05",
+      "puzzle_id": "gridlock",
+      "solved": true,
+      "moves": 5,
+      "elapsed_seconds": 6.111
+    },
+    {
+      "timestamp": "2026-04-22T21:49:14",
+      "puzzle_id": "gridlock",
+      "solved": true,
+      "moves": 5,
+      "elapsed_seconds": 4.333
+    },
+    {
+      "timestamp": "2026-04-22T21:49:32",
+      "puzzle_id": "hard_escape",
+      "solved": true,
+      "moves": 17,
+      "elapsed_seconds": 14.658
+    },
+    {
+      "timestamp": "2026-04-24T19:58:15",
+      "puzzle_id": "city_block",
+      "solved": true,
+      "moves": 22,
+      "elapsed_seconds": 44.825
+    },
+    {
+      "timestamp": "2026-04-24T20:01:24",
+      "puzzle_id": "hard_escape",
+      "solved": true,
+      "moves": 11,
+      "elapsed_seconds": 8.685
+    },
+    {
+      "timestamp": "2026-04-25T14:38:43",
       "puzzle_id": "already_one_move",
       "solved": true,
       "moves": 1,
       "elapsed_seconds": 5.001
+    },
+    {
+      "timestamp": "2026-04-25T14:39:49",
+      "puzzle_id": "already_one_move",
+      "solved": true,
+      "moves": 1,
+      "elapsed_seconds": 5.001
+    },
+    {
+      "timestamp": "2026-04-25T14:43:22",
+      "puzzle_id": "already_one_move",
+      "solved": true,
+      "moves": 1,
+      "elapsed_seconds": 5.001
+    },
+    {
+      "timestamp": "2026-04-25T14:53:21",
+      "puzzle_id": "city_block",
+      "solved": true,
+      "moves": 11,
+      "elapsed_seconds": 9.706
+    },
+    {
+      "timestamp": "2026-04-25T14:53:33",
+      "puzzle_id": "city_block",
+      "solved": true,
+      "moves": 11,
+      "elapsed_seconds": 8.089
+    },
+    {
+      "timestamp": "2026-04-25T14:57:04",
+      "puzzle_id": "easy_starter",
+      "solved": true,
+      "moves": 2,
+      "elapsed_seconds": 2.626
+    },
+    {
+      "timestamp": "2026-04-25T15:00:36",
+      "puzzle_id": "easy_starter",
+      "solved": true,
+      "moves": 2,
+      "elapsed_seconds": 1.868
+    },
+    {
+      "timestamp": "2026-04-25T15:00:50",
+      "puzzle_id": "city_block",
+      "solved": true,
+      "moves": 11,
+      "elapsed_seconds": 8.112
+    },
+    {
+      "timestamp": "2026-04-25T15:05:48",
+      "puzzle_id": "already_one_move",
+      "solved": true,
+      "moves": 1,
+      "elapsed_seconds": 5.001
+    },
+    {
+      "timestamp": "2026-04-25T16:42:05",
+      "puzzle_id": "already_one_move",
+      "solved": true,
+      "moves": 1,
+      "elapsed_seconds": 5.0
+    },
+    {
+      "timestamp": "2026-04-25T16:54:40",
+      "puzzle_id": "expert_gauntlet",
+      "solved": true,
+      "moves": 7,
+      "elapsed_seconds": 7.862
     }
   ]
 }
