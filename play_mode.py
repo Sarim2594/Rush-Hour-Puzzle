@@ -12,16 +12,23 @@ from ui import (
     ACCENT,
     ACCENT_DARK,
     MUTED,
-    PANEL_X,
     TEXT,
-    CELL_SIZE,
+    current_cell_size,
     draw_background,
     draw_board,
+    draw_panel_title,
+    draw_screen_title,
     draw_stats_block,
     draw_text,
     format_seconds,
+    get_board_screen_layout,
+    ellipsize_text,
+    layout_buttons_in_rect,
     make_button_row,
+    measure_stats_block_height,
+    measure_text_panel_height,
     panel_card,
+    set_board_geometry,
     screen_to_cell,
 )
 
@@ -48,7 +55,7 @@ class PlayMode:
         self.drag_preview_distance = 0
         self.buttons = make_button_row(
             [("Back", "back"), ("Hint", "hint"), ("Solve", "solve"), ("Reset", "reset")],
-            PANEL_X,
+            0,
             500,
             width=108,
             gap=10,
@@ -104,6 +111,9 @@ class PlayMode:
         self.message = f"Auto-solving in {len(self.auto_solution)} optimal moves."
 
     def handle_event(self, event: pygame.event.Event) -> str | None:
+        surface = pygame.display.get_surface()
+        if surface is not None:
+            set_board_geometry(get_board_screen_layout(surface, sidebar_min_width=340).board)
         for button in self.buttons:
             action = button.handle_event(event)
             if action:
@@ -146,7 +156,7 @@ class PlayMode:
             dx = event.pos[0] - self.drag_origin_pos[0]
             dy = event.pos[1] - self.drag_origin_pos[1]
             delta = dx if vehicle.orientation == "H" else dy
-            raw_steps = int(round(delta / CELL_SIZE))
+            raw_steps = int(round(delta / max(1, current_cell_size())))
             self.drag_preview_distance = self.resolve_drag_distance(vehicle.id, raw_steps)
 
         if event.type == pygame.MOUSEBUTTONUP and event.button == 1 and self.drag_vehicle_id:
@@ -185,13 +195,54 @@ class PlayMode:
             return self.board.apply_move(Move(self.drag_vehicle_id, self.drag_preview_distance))
         return self.board
 
+    def _layout(self, surface: pygame.Surface) -> dict[str, pygame.Rect]:
+        base = get_board_screen_layout(surface, sidebar_min_width=340)
+        gap = base.chrome.gap
+        sidebar = base.sidebar
+        stats_h = measure_stats_block_height(4)
+        help_h = measure_text_panel_height(4)
+        message_h = 72
+        buttons_h = 54 if sidebar.width >= 430 else 118
+        total_h = stats_h + help_h + buttons_h + message_h + gap * 3
+        if total_h > sidebar.height:
+            overflow = total_h - sidebar.height
+            help_h = max(120, help_h - overflow)
+        stats_rect = pygame.Rect(sidebar.x, sidebar.y, sidebar.width, stats_h)
+        help_rect = pygame.Rect(sidebar.x, stats_rect.bottom + gap, sidebar.width, help_h)
+        buttons_rect = pygame.Rect(sidebar.x, help_rect.bottom + gap, sidebar.width, buttons_h)
+        message_rect = pygame.Rect(sidebar.x, buttons_rect.bottom + gap, sidebar.width, message_h)
+        if message_rect.bottom > sidebar.bottom:
+            message_rect.y = sidebar.bottom - message_rect.height
+            buttons_rect.y = message_rect.y - gap - buttons_rect.height
+        return {
+            "board": base.board,
+            "stats": stats_rect,
+            "help": help_rect,
+            "buttons": buttons_rect,
+            "message": message_rect,
+        }
+
     def draw(self, surface: pygame.Surface, fonts: dict[str, pygame.font.Font]) -> None:
         draw_background(surface)
         mouse_pos = pygame.mouse.get_pos()
-        draw_text(surface, fonts["title"], self.puzzle_name, TEXT, (60, 28))
-        draw_board(surface, self.display_board(), fonts, selected_vehicle_id=self.selected_vehicle_id)
-
-        info_rect = pygame.Rect(PANEL_X, 100, 360, 176)
+        chrome = draw_screen_title(
+            surface,
+            fonts,
+            self.puzzle_name,
+            "Interactive play with hints, live move tracking, and responsive controls.",
+        )
+        layout = self._layout(surface)
+        info_rect = layout["stats"]
+        help_rect = layout["help"]
+        buttons_rect = layout["buttons"]
+        message_rect = layout["message"]
+        draw_board(
+            surface,
+            self.display_board(),
+            fonts,
+            selected_vehicle_id=self.selected_vehicle_id,
+            board_area=layout["board"],
+        )
         draw_stats_block(
             surface,
             fonts,
@@ -200,17 +251,13 @@ class PlayMode:
                 f"Moves: {self.move_count}",
                 f"Time: {format_seconds(self.elapsed())}",
                 f"Selected: {self.selected_vehicle_id or '-'}",
-                f"Status: {'Solved' if self.finished else 'In progress'}",
+                f"State: {'Solved' if self.finished else 'In progress'}",
             ],
             info_rect,
         )
-        if self.finished:
-            draw_text(surface, fonts["small"], "Solved!", ACCENT_DARK, (info_rect.x + 18, info_rect.bottom - 32))
 
-        help_rect = pygame.Rect(PANEL_X, 300, 360, 184)
         panel_card(surface, help_rect)
-        draw_text(surface, fonts["heading"], "Controls", TEXT, (help_rect.x + 18, help_rect.y + 14))
-        pygame.draw.rect(surface, ACCENT, pygame.Rect(help_rect.x + 18, help_rect.y + 44, help_rect.width - 36, 1))
+        draw_panel_title(surface, fonts, help_rect, "Controls")
         help_lines = [
             "Drag a vehicle along its lane to move it.",
             "Hint plays exactly one optimal move.",
@@ -220,9 +267,10 @@ class PlayMode:
         for index, line in enumerate(help_lines):
             draw_text(surface, fonts["small"], line, MUTED, (help_rect.x + 18, help_rect.y + 56 + index * 28))
 
-        message_rect = pygame.Rect(PANEL_X, 600, 360, 64)
+        layout_buttons_in_rect(self.buttons, buttons_rect, min_width=96, max_width=150, gap=10)
         panel_card(surface, message_rect)
-        draw_text(surface, fonts["small"], self.message[:46], TEXT, (message_rect.x + 18, message_rect.y + 22))
+        message = ellipsize_text(fonts["small"], self.message, message_rect.width - 36)
+        draw_text(surface, fonts["small"], message, TEXT, (message_rect.x + 18, message_rect.y + 22))
 
         for button in self.buttons:
             button.draw(surface, fonts, mouse_pos)
