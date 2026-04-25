@@ -1,0 +1,35 @@
+{
+  "id": "custom_puzzle",
+  "name": "Custom_Puzzle",
+  "vehicles": [
+    {
+      "id": "A",
+      "row": 2,
+      "col": 4,
+      "length": 3,
+      "orientation": "V"
+    },
+    {
+      "id": "B",
+      "row": 2,
+      "col": 2,
+      "length": 3,
+      "orientation": "V"
+    },
+    {
+      "id": "C",
+      "row": 0,
+      "col": 3,
+      "length": 2,
+      "orientation": "V"
+    },
+    {
+      "id": "X",
+      "row": 2,
+      "col": 0,
+      "length": 2,
+      "orientation": "H",
+      "is_red": true
+    }
+  ]
+}

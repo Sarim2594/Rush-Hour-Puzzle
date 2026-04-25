@@ -21,6 +21,7 @@ from ui import (
     create_fonts,
     draw_background,
     draw_text,
+    ellipsize_text,
     panel_card,
 )
 
@@ -95,6 +96,10 @@ class MenuScreen:
 class SolveHistoryScreen:
     def __post_init__(self) -> None:
         self.back_button = Button("Back", pygame.Rect(60, 680, 120, 48), "back", fill=ACCENT)
+        self.puzzle_scroll = 0
+        self.recent_scroll = 0
+        self._puzzles_view_rect = pygame.Rect(0, 0, 0, 0)
+        self._recent_view_rect = pygame.Rect(0, 0, 0, 0)
         self.refresh()
 
     def refresh(self) -> None:
@@ -102,11 +107,60 @@ class SolveHistoryScreen:
         boards = load_puzzle_library()
         self.board_names = {board.metadata.get("id", "custom"): board.metadata.get("name", "Puzzle") for board in boards}
         self.puzzle_items = sorted(self.history.get("puzzles", {}).items())
+        self.puzzle_scroll = 0
+        self.recent_scroll = 0
+
+    @staticmethod
+    def _max_scroll(item_count: int, line_height: int, view_height: int) -> int:
+        content_height = item_count * line_height
+        return max(0, content_height - view_height)
+
+    def _scroll_history(self, amount: int, over_puzzles: bool, entries_count: int) -> None:
+        if over_puzzles:
+            max_scroll = self._max_scroll(len(self.puzzle_items), 34, self._puzzles_view_rect.height)
+            self.puzzle_scroll = max(0, min(max_scroll, self.puzzle_scroll + amount))
+        else:
+            max_scroll = self._max_scroll(entries_count, 32, self._recent_view_rect.height)
+            self.recent_scroll = max(0, min(max_scroll, self.recent_scroll + amount))
+
+    @staticmethod
+    def _draw_scrollbar(
+        surface: pygame.Surface,
+        track_rect: pygame.Rect,
+        content_height: int,
+        view_height: int,
+        scroll: int,
+    ) -> None:
+        if content_height <= view_height:
+            return
+        pygame.draw.rect(surface, (225, 222, 214), track_rect, border_radius=4)
+        thumb_h = max(24, int(track_rect.height * (view_height / content_height)))
+        max_thumb_y = track_rect.height - thumb_h
+        thumb_y = track_rect.y
+        if max_thumb_y > 0:
+            thumb_y += int((scroll / max(1, content_height - view_height)) * max_thumb_y)
+        thumb_rect = pygame.Rect(track_rect.x + 1, thumb_y, track_rect.width - 2, thumb_h)
+        pygame.draw.rect(surface, (168, 165, 156), thumb_rect, border_radius=4)
 
     def handle_event(self, event: pygame.event.Event) -> str | None:
         action = self.back_button.handle_event(event)
         if action:
             return action
+        entries = self.history.get("entries", [])
+        recent_entries = entries[::-1]
+        if event.type == pygame.MOUSEWHEEL:
+            mouse_pos = pygame.mouse.get_pos()
+            if self._puzzles_view_rect.collidepoint(mouse_pos):
+                self._scroll_history(-event.y * 24, over_puzzles=True, entries_count=len(recent_entries))
+            elif self._recent_view_rect.collidepoint(mouse_pos):
+                self._scroll_history(-event.y * 24, over_puzzles=False, entries_count=len(recent_entries))
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button in {4, 5}:
+            mouse_pos = event.pos
+            direction = -24 if event.button == 4 else 24
+            if self._puzzles_view_rect.collidepoint(mouse_pos):
+                self._scroll_history(direction, over_puzzles=True, entries_count=len(recent_entries))
+            elif self._recent_view_rect.collidepoint(mouse_pos):
+                self._scroll_history(direction, over_puzzles=False, entries_count=len(recent_entries))
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
             return "back"
         return None
@@ -116,6 +170,7 @@ class SolveHistoryScreen:
 
     def draw(self, surface: pygame.Surface, fonts: dict[str, pygame.font.Font]) -> None:
         draw_background(surface)
+        _, screen_h = surface.get_size()
         draw_text(surface, fonts["title"], "Solve History", TEXT, (60, 50))
 
         entries = self.history.get("entries", [])
@@ -137,23 +192,51 @@ class SolveHistoryScreen:
         panel_card(surface, puzzles_rect)
         draw_text(surface, fonts["heading"], "Per Puzzle Bests", TEXT, (puzzles_rect.x + 18, puzzles_rect.y + 14))
         pygame.draw.rect(surface, ACCENT, pygame.Rect(puzzles_rect.x + 18, puzzles_rect.y + 44, puzzles_rect.width - 36, 1))
+        puzzles_view_rect = pygame.Rect(puzzles_rect.x + 18, puzzles_rect.y + 64, puzzles_rect.width - 36, puzzles_rect.height - 76)
+        self._puzzles_view_rect = puzzles_view_rect
         if not self.puzzle_items:
             draw_text(surface, fonts["small"], "No solve history recorded yet.", MUTED, (puzzles_rect.x + 18, puzzles_rect.y + 64))
-        for index, (puzzle_id, data) in enumerate(self.puzzle_items[:5]):
+        line_h_puzzles = 34
+        content_h_puzzles = len(self.puzzle_items) * line_h_puzzles
+        self.puzzle_scroll = max(0, min(self.puzzle_scroll, self._max_scroll(len(self.puzzle_items), line_h_puzzles, puzzles_view_rect.height)))
+        old_clip = surface.get_clip()
+        surface.set_clip(puzzles_view_rect)
+        for index, (puzzle_id, data) in enumerate(self.puzzle_items):
             name = self.board_names.get(puzzle_id, puzzle_id)
             best_moves = data.get("best_moves") if data.get("best_moves") is not None else "-"
             best_time = data.get("best_time")
             best_time_text = "-" if best_time is None else f"{int(best_time) // 60:02d}:{int(best_time) % 60:02d}"
             line = f"{name}: best moves {best_moves}, best time {best_time_text}"
-            draw_text(surface, fonts["small"], line, TEXT, (puzzles_rect.x + 18, puzzles_rect.y + 64 + index * 34))
+            fitted = ellipsize_text(fonts["small"], line, puzzles_view_rect.width - 14)
+            y = puzzles_view_rect.y + index * line_h_puzzles - self.puzzle_scroll
+            draw_text(surface, fonts["small"], fitted, TEXT, (puzzles_view_rect.x, y))
+        surface.set_clip(old_clip)
+        self._draw_scrollbar(
+            surface,
+            pygame.Rect(puzzles_rect.right - 14, puzzles_view_rect.y, 8, puzzles_view_rect.height),
+            content_h_puzzles,
+            puzzles_view_rect.height,
+            self.puzzle_scroll,
+        )
 
-        recent_rect = pygame.Rect(60, 340, 1060, 320)
+        row_bottom = max(summary_rect.bottom, puzzles_rect.bottom)
+        recent_top = row_bottom + 20
+        bottom_reserved = 74  # back button + margin
+        recent_height = max(220, screen_h - recent_top - bottom_reserved)
+        recent_rect = pygame.Rect(60, recent_top, 1060, recent_height)
         panel_card(surface, recent_rect)
         draw_text(surface, fonts["heading"], "Recent Attempts", TEXT, (recent_rect.x + 18, recent_rect.y + 14))
         pygame.draw.rect(surface, ACCENT, pygame.Rect(recent_rect.x + 18, recent_rect.y + 44, recent_rect.width - 36, 1))
-        recent_entries = entries[-7:][::-1]
+        recent_entries = entries[::-1]
+        recent_view_rect = pygame.Rect(recent_rect.x + 18, recent_rect.y + 64, recent_rect.width - 36, recent_rect.height - 76)
+        self._recent_view_rect = recent_view_rect
         if not recent_entries:
             draw_text(surface, fonts["small"], "No attempts recorded yet.", MUTED, (recent_rect.x + 18, recent_rect.y + 64))
+        line_h_recent = 32
+        content_h_recent = len(recent_entries) * line_h_recent
+        self.recent_scroll = max(0, min(self.recent_scroll, self._max_scroll(len(recent_entries), line_h_recent, recent_view_rect.height)))
+        old_clip = surface.get_clip()
+        surface.set_clip(recent_view_rect)
         for index, entry in enumerate(recent_entries):
             name = self.board_names.get(entry.get("puzzle_id", ""), entry.get("puzzle_id", "Puzzle"))
             color = ACCENT_DARK if entry.get("solved") else MUTED
@@ -163,8 +246,19 @@ class SolveHistoryScreen:
                 f"Moves {entry.get('moves', '-')} | "
                 f"Time {int(entry.get('elapsed_seconds', 0)) // 60:02d}:{int(entry.get('elapsed_seconds', 0)) % 60:02d}"
             )
-            draw_text(surface, fonts["small"], line, color, (recent_rect.x + 18, recent_rect.y + 64 + index * 32))
+            fitted = ellipsize_text(fonts["small"], line, recent_view_rect.width - 14)
+            y = recent_view_rect.y + index * line_h_recent - self.recent_scroll
+            draw_text(surface, fonts["small"], fitted, color, (recent_view_rect.x, y))
+        surface.set_clip(old_clip)
+        self._draw_scrollbar(
+            surface,
+            pygame.Rect(recent_rect.right - 14, recent_view_rect.y, 8, recent_view_rect.height),
+            content_h_recent,
+            recent_view_rect.height,
+            self.recent_scroll,
+        )
 
+        self.back_button.rect.y = min(screen_h - self.back_button.rect.height - 12, recent_rect.bottom + 12)
         self.back_button.draw(surface, fonts, pygame.mouse.get_pos())
 
 
@@ -232,7 +326,7 @@ def run() -> int:
     ensure_storage()
     pygame.init()
     pygame.display.set_caption("Rush Hour Puzzle Solver")
-    screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+    screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
     clock = pygame.time.Clock()
     fonts = create_fonts()
 

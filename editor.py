@@ -8,12 +8,13 @@ from board import Board, RED_VEHICLE_ID, Vehicle
 from storage import CUSTOM_PUZZLES_DIR, load_board, save_custom_puzzle
 from ui import (
     ACCENT,
-    BACKGROUND,
     MUTED,
+    PANEL_BG,
     PANEL_X,
     TEXT,
     WHITE,
     Button,
+    draw_background,
     draw_board,
     draw_text,
     make_button_row,
@@ -24,6 +25,15 @@ from ui import (
 
 @dataclass
 class EditorMode:
+    def _orientation_button_label(self) -> str:
+        return f"Toggle ({self.pending_orientation})"
+
+    def _sync_orientation_button(self) -> None:
+        for button in self.buttons:
+            if button.action == "toggle_orientation":
+                button.label = self._orientation_button_label()
+                break
+
     def __post_init__(self) -> None:
         self.vehicles: list[Vehicle] = [
             Vehicle(id=RED_VEHICLE_ID, row=2, col=0, length=2, orientation="H", is_red=True)
@@ -39,14 +49,21 @@ class EditorMode:
             make_button_row(
                 [("Back", "back"), ("Save", "save"), ("Delete", "delete"), ("Clear", "clear")],
                 PANEL_X,
-                520,
-                width=98,
+                540,
+                width=96,
+                gap=8,
             )
             + make_button_row(
-                [("Add Car", "car"), ("Add Truck", "truck"), ("Add Red", "red"), ("Toggle H/V", "toggle_orientation")],
+                [
+                    ("Add Car", "car"),
+                    ("Add Truck", "truck"),
+                    ("Add Red", "red"),
+                    (self._orientation_button_label(), "toggle_orientation"),
+                ],
                 PANEL_X,
-                582,
-                width=98,
+                600,
+                width=84,
+                gap=8,
             )
         )
 
@@ -178,6 +195,7 @@ class EditorMode:
                     self.pending_length = 2
                 elif action == "toggle_orientation":
                     self.pending_orientation = "V" if self.pending_orientation == "H" else "H"
+                self._sync_orientation_button()
                 return None
 
         if event.type == pygame.KEYDOWN:
@@ -211,7 +229,7 @@ class EditorMode:
 
             saved_list_origin = (PANEL_X, 140)
             for index, path in enumerate(self.loadable_paths[:6]):
-                rect = pygame.Rect(saved_list_origin[0], saved_list_origin[1] + index * 54, 340, 42)
+                rect = pygame.Rect(saved_list_origin[0] + 12, 387 + index * 24, 336, 22)
                 if rect.collidepoint(event.pos):
                     self.load_file(index)
                     return None
@@ -222,42 +240,52 @@ class EditorMode:
         return None
 
     def draw(self, surface: pygame.Surface, fonts: dict[str, pygame.font.Font]) -> None:
-        surface.fill(BACKGROUND)
+        draw_background(surface)
         mouse_pos = pygame.mouse.get_pos()
         draw_text(surface, fonts["title"], "Puzzle Editor", TEXT, (60, 28))
 
         board = self.current_board()
-        draw_board(surface, board or Board(self.vehicles, metadata={"id": "preview", "name": "Preview"}), fonts, selected_vehicle_id=self.selected_vehicle_id)
+        draw_board(
+            surface,
+            board or Board(self.vehicles, metadata={"id": "preview", "name": "Preview"}),
+            fonts,
+            selected_vehicle_id=self.selected_vehicle_id,
+        )
 
-        config_rect = pygame.Rect(PANEL_X, 90, 360, 220)
+        config_rect = pygame.Rect(PANEL_X, 100, 360, 220)
         panel_card(surface, config_rect)
-        draw_text(surface, fonts["heading"], "Editor Settings", TEXT, (config_rect.x + 18, config_rect.y + 16))
+        draw_text(surface, fonts["heading"], "Editor Settings", TEXT, (config_rect.x + 18, config_rect.y + 14))
+        pygame.draw.rect(surface, ACCENT, pygame.Rect(config_rect.x + 18, config_rect.y + 44, config_rect.width - 36, 1))
+        add_mode = "Red car" if self.pending_kind == "red" else f"{self.pending_length}-tile vehicle"
         config_lines = [
-            f"Name: {self.puzzle_name}",
+            f"Name: {self.puzzle_name[:18]}",
             f"Selected: {self.selected_vehicle_id or '-'}",
-            f"Add mode: {'Red car' if self.pending_kind == 'red' else f'{self.pending_length}-tile vehicle'}",
+            f"Add mode: {add_mode}",
             f"Orientation: {self.pending_orientation}",
             "Type letters, numbers, _ or - to rename.",
             "Tip: click a vehicle, then click a new anchor cell.",
         ]
         for index, line in enumerate(config_lines):
-            draw_text(surface, fonts["small"], line, MUTED if index >= 4 else TEXT, (config_rect.x + 18, config_rect.y + 58 + index * 26))
+            color = MUTED if index >= 4 else TEXT
+            draw_text(surface, fonts["small"], line, color, (config_rect.x + 18, config_rect.y + 58 + index * 26))
 
-        saved_rect = pygame.Rect(PANEL_X, 326, 360, 176)
+        saved_rect = pygame.Rect(PANEL_X, 335, 360, 194)
         panel_card(surface, saved_rect)
-        draw_text(surface, fonts["heading"], "Saved Custom Puzzles", TEXT, (saved_rect.x + 18, saved_rect.y + 16))
+        draw_text(surface, fonts["heading"], "Saved Custom Puzzles", TEXT, (saved_rect.x + 18, saved_rect.y + 14))
+        pygame.draw.rect(surface, ACCENT, pygame.Rect(saved_rect.x + 18, saved_rect.y + 44, saved_rect.width - 36, 1))
         if not self.loadable_paths:
-            draw_text(surface, fonts["small"], "No saved custom puzzles yet.", MUTED, (saved_rect.x + 18, saved_rect.y + 58))
+            draw_text(surface, fonts["small"], "No saved custom puzzles yet.", MUTED, (saved_rect.x + 18, saved_rect.y + 62))
         for index, path in enumerate(self.loadable_paths[:6]):
-            rect = pygame.Rect(saved_rect.x + 12, saved_rect.y + 48 + index * 54, 336, 42)
-            color = ACCENT if rect.collidepoint(mouse_pos) else WHITE
-            pygame.draw.rect(surface, color, rect, border_radius=12)
-            pygame.draw.rect(surface, TEXT, rect, width=2, border_radius=12)
-            draw_text(surface, fonts["small"], path.stem, TEXT if color == WHITE else WHITE, (rect.x + 14, rect.y + 10))
+            rect = pygame.Rect(saved_rect.x + 12, saved_rect.y + 52 + index * 24, 336, 22)
+            hovered = rect.collidepoint(mouse_pos)
+            fill = (230, 238, 248) if hovered else PANEL_BG
+            pygame.draw.rect(surface, fill, rect, border_radius=6)
+            pygame.draw.rect(surface, (205, 206, 198), rect, width=1, border_radius=6)
+            draw_text(surface, fonts["small"], path.stem[:30], TEXT, (rect.x + 10, rect.y + 2))
 
-        message_rect = pygame.Rect(PANEL_X, 640, 360, 72)
+        message_rect = pygame.Rect(PANEL_X, 670, 360, 56)
         panel_card(surface, message_rect)
-        draw_text(surface, fonts["small"], self.message, TEXT, (message_rect.x + 18, message_rect.y + 24))
+        draw_text(surface, fonts["small"], self.message[:46], TEXT, (message_rect.x + 18, message_rect.y + 18))
 
         for button in self.buttons:
             button.draw(surface, fonts, mouse_pos)

@@ -20,6 +20,7 @@ from ui import (
     draw_stats_block,
     draw_text,
     format_seconds,
+    ellipsize_text,
     make_button_row,
     panel_card,
     screen_to_cell,
@@ -200,12 +201,10 @@ class PlayMode:
                 f"Moves: {self.move_count}",
                 f"Time: {format_seconds(self.elapsed())}",
                 f"Selected: {self.selected_vehicle_id or '-'}",
-                f"Status: {'Solved' if self.finished else 'In progress'}",
+                f"State: {'Solved' if self.finished else 'In progress'}",
             ],
             info_rect,
         )
-        if self.finished:
-            draw_text(surface, fonts["small"], "Solved!", ACCENT_DARK, (info_rect.x + 18, info_rect.bottom - 32))
 
         help_rect = pygame.Rect(PANEL_X, 300, 360, 184)
         panel_card(surface, help_rect)
@@ -222,7 +221,8 @@ class PlayMode:
 
         message_rect = pygame.Rect(PANEL_X, 600, 360, 64)
         panel_card(surface, message_rect)
-        draw_text(surface, fonts["small"], self.message[:46], TEXT, (message_rect.x + 18, message_rect.y + 22))
+        message = ellipsize_text(fonts["small"], self.message, message_rect.width - 36)
+        draw_text(surface, fonts["small"], message, TEXT, (message_rect.x + 18, message_rect.y + 22))
 
         for button in self.buttons:
             button.draw(surface, fonts, mouse_pos)
