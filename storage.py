@@ -14,6 +14,12 @@ PUZZLES_DIR = BASE_DIR / "puzzles"
 CUSTOM_PUZZLES_DIR = BASE_DIR / "custom_puzzles"
 DATA_DIR = BASE_DIR / "data"
 HISTORY_PATH = DATA_DIR / "solve_history.json"
+DIFFICULTY_ORDER = {
+    "Easy": 0,
+    "Medium": 1,
+    "Hard": 2,
+    "Custom": 3,
+}
 
 
 @dataclass(slots=True)
@@ -48,6 +54,12 @@ def load_puzzle_library() -> list[Board]:
         boards.append(load_board(path))
     for path in sorted(CUSTOM_PUZZLES_DIR.glob("*.json")):
         boards.append(load_board(path))
+    boards.sort(
+        key=lambda board: (
+            DIFFICULTY_ORDER.get(board.metadata.get("difficulty", "Custom"), 99),
+            board.metadata.get("name", "").lower(),
+        )
+    )
     return boards
 
 

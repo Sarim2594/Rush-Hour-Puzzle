@@ -8,19 +8,17 @@ from astar_solver import SolveResult, solve_astar
 from board import Board
 from ui import (
     ACCENT,
-    ACCENT_DARK,
     MUTED,
     SUCCESS,
     TEXT,
-    WARNING,
     Button,
+    Dropdown,
     draw_background,
     draw_board,
     draw_panel_title,
     draw_screen_title,
     draw_stats_block,
     draw_text,
-    ellipsize_text,
     format_seconds,
     get_board_screen_layout,
     layout_buttons_in_rect,
@@ -50,19 +48,30 @@ class DemoMode:
         self.timer = 0.0
         self.exploration_interval = 0.16
         self.solution_interval = 0.32
+        self.speed_presets = {
+            "slow": ("Slow", 0.28, 0.48),
+            "normal": ("Normal", 0.16, 0.32),
+            "fast": ("Fast", 0.09, 0.18),
+            "very_fast": ("Very Fast", 0.05, 0.1),
+        }
         self.message = "Press Start Demo to open the traversal view."
         self.buttons = make_button_row(
             [
                 ("Back", "back"),
                 ("Start Demo", "start"),
                 ("Reset", "reset"),
-                ("Slower", "slower"),
-                ("Faster", "faster"),
             ],
             0,
             520,
-            width=96,
+            width=112,
             gap=8,
+        )
+        self.speed_dropdown = Dropdown(
+            label="",
+            rect=pygame.Rect(0, 0, 150, 38),
+            options=[(value, preset[0]) for value, preset in self.speed_presets.items()],
+            selected_value="normal",
+            open_upward=False,
         )
         self._last_graph_rect: pygame.Rect | None = None
 
@@ -70,39 +79,52 @@ class DemoMode:
         base = get_board_screen_layout(surface, sidebar_min_width=360)
         sidebar = base.sidebar
         gap = base.chrome.gap
-        message_h = 66
-        buttons_h = 56 if sidebar.width >= 520 else 122
+        vertical_gap = int(gap * 1.4) if gap < 20 else gap
+        h_gap = min(8, gap)  # Reduced horizontal gap
+        
+        # Anchored directly to the header to move everything higher
+        stack_top = base.chrome.header_y 
+        
+        stack_bottom = sidebar.bottom
+        stack_height = stack_bottom - stack_top
+        
+        # Increased height for maximum dropdown clearance
+        controls_h = 210 
+        
         stats_h = measure_stats_block_height(5)
-        legend_h = measure_text_panel_height(3, top_padding=60, line_gap=26, bottom_padding=20)
+        legend_h = measure_text_panel_height(3, top_padding=52, line_gap=24, bottom_padding=16)
         info_h = max(stats_h, legend_h)
+        
         min_graph_h = 170 if not base.stacked else 150
-        graph_h = max(min_graph_h, sidebar.height - info_h - buttons_h - message_h - gap * 3)
-        graph_h = min(graph_h, max(min_graph_h, int(sidebar.height * 0.52)))
-        graph_rect = pygame.Rect(sidebar.x, sidebar.y, sidebar.width, graph_h)
-        row_top = graph_rect.bottom + gap
-        stats_w = int(sidebar.width * (0.68 if sidebar.width > 430 else 0.62))
-        legend_w = max(120, sidebar.width - stats_w - gap)
+        graph_h = max(min_graph_h, stack_height - info_h - controls_h - vertical_gap * 2)
+        graph_h = min(graph_h, max(min_graph_h, int(stack_height * 0.58)))
+        
+        graph_rect = pygame.Rect(sidebar.x, stack_top, sidebar.width, graph_h)
+        row_top = graph_rect.bottom + vertical_gap
+        
+        stats_w = int((sidebar.width - h_gap) * 0.6)
+        legend_w = sidebar.width - stats_w - h_gap
+        
         stats_rect = pygame.Rect(sidebar.x, row_top, stats_w, info_h)
-        legend_rect = pygame.Rect(stats_rect.right + gap, row_top, legend_w, info_h)
-        buttons_y = row_top + info_h + gap
-        message_y = buttons_y + buttons_h + gap
-        if message_y + message_h > sidebar.bottom:
-            overflow = message_y + message_h - sidebar.bottom
+        legend_rect = pygame.Rect(stats_rect.right + h_gap, row_top, legend_w, info_h)
+        
+        controls_y = row_top + info_h + vertical_gap
+        controls_rect = pygame.Rect(sidebar.x, controls_y, sidebar.width, controls_h)
+        
+        if controls_rect.bottom > stack_bottom:
+            overflow = controls_rect.bottom - stack_bottom
             graph_rect.height = max(min_graph_h, graph_rect.height - overflow)
-            row_top = graph_rect.bottom + gap
+            row_top = graph_rect.bottom + vertical_gap
             stats_rect.y = row_top
             legend_rect.y = row_top
-            buttons_y = row_top + info_h + gap
-            message_y = buttons_y + buttons_h + gap
-        message_rect = pygame.Rect(sidebar.x, message_y, sidebar.width, message_h)
-        buttons_rect = pygame.Rect(sidebar.x, buttons_y, sidebar.width, buttons_h)
+            controls_rect.y = row_top + info_h + vertical_gap
+            
         return {
             "board": base.board,
             "graph": graph_rect,
             "stats": stats_rect,
             "legend": legend_rect,
-            "message": message_rect,
-            "buttons": buttons_rect,
+            "controls": controls_rect,
         }
 
     def start_demo(self) -> None:
@@ -128,6 +150,13 @@ class DemoMode:
         self.message = "Demo reset."
 
     def handle_event(self, event: pygame.event.Event) -> str | None:
+        speed_value = self.speed_dropdown.handle_event(event)
+        if speed_value in self.speed_presets:
+            _label, exploration_speed, solution_speed = self.speed_presets[speed_value]
+            self.exploration_interval = exploration_speed
+            self.solution_interval = solution_speed
+            self.message = f"Playback speed set to {self.speed_presets[speed_value][0]}."
+            return None
         for button in self.buttons:
             action = button.handle_event(event)
             if action:
@@ -137,12 +166,6 @@ class DemoMode:
                     self.start_demo()
                 elif action == "reset":
                     self.reset()
-                elif action == "slower":
-                    self.exploration_interval = min(0.8, self.exploration_interval + 0.04)
-                    self.solution_interval = min(1.0, self.solution_interval + 0.05)
-                elif action == "faster":
-                    self.exploration_interval = max(0.05, self.exploration_interval - 0.04)
-                    self.solution_interval = max(0.08, self.solution_interval - 0.05)
                 return None
 
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
@@ -198,14 +221,7 @@ class DemoMode:
             self.graph_positions = {}
             return
 
-        max_nodes = 160
-        if len(keys) <= max_nodes:
-            sampled_indices = list(range(len(keys)))
-        else:
-            step = (len(keys) - 1) / (max_nodes - 1)
-            sampled_indices = sorted({int(round(index * step)) for index in range(max_nodes)})
-
-        sampled_keys = [keys[index] for index in sampled_indices]
+        sampled_keys = keys
         unique_depths = sorted({self.result.depth_by_key.get(key, 0) for key in sampled_keys})
         depth_columns = {depth: index for index, depth in enumerate(unique_depths)}
         if graph_rect is None:
@@ -218,9 +234,11 @@ class DemoMode:
         column_count = max(1, len(unique_depths))
         for depth, level_keys in levels.items():
             column = depth_columns[depth]
-            x = graph_rect.x + 30 + int(column * (graph_rect.width - 60) / max(1, column_count - 1))
+            x = graph_rect.x + 28 + int(column * (graph_rect.width - 56) / max(1, column_count - 1))
+            lane_count = max(1, graph_rect.height - 84)
             for index, key in enumerate(level_keys):
-                y = graph_rect.y + 36 + int((index + 1) * (graph_rect.height - 72) / (len(level_keys) + 1))
+                lane = int(index * lane_count / max(1, len(level_keys)))
+                y = graph_rect.y + 52 + lane
                 positions[key] = (x, y)
 
         self.graph_sample_keys = sampled_keys
@@ -258,17 +276,18 @@ class DemoMode:
 
         for key in self.graph_sample_keys:
             pos = self.graph_positions[key]
-            radius = 6
+            radius = 3 if len(self.graph_sample_keys) > 700 else 5
             color = (145, 146, 152)
             if key in solution_set:
                 color = SUCCESS
-                radius = 7
+                radius = max(radius + 1, 4)
             if key == current_key:
                 color = ACCENT
-                radius = 10
+                radius = max(radius + 3, 7)
             pygame.draw.circle(surface, color, pos, radius)
 
-        draw_text(surface, fonts["small"], "Nodes arranged by search depth.", MUTED, (graph_rect.x + 18, graph_rect.bottom - 28))
+        footer = f"Showing all {len(self.graph_sample_keys)} expanded nodes by search depth."
+        draw_text(surface, fonts["small"], footer, MUTED, (graph_rect.x + 18, graph_rect.bottom - 28))
 
     def draw(self, surface: pygame.Surface, fonts: dict[str, pygame.font.Font]) -> None:
         draw_background(surface)
@@ -278,9 +297,7 @@ class DemoMode:
         graph_rect = layout["graph"]
         stats_rect = layout["stats"]
         legend_rect = layout["legend"]
-        message_rect = layout["message"]
-        buttons_rect = layout["buttons"]
-        layout_buttons_in_rect(self.buttons, buttons_rect, min_width=90, max_width=130, gap=8)
+        controls_rect = layout["controls"]
 
         if self.result and (self._last_graph_rect is None or self._last_graph_rect.size != graph_rect.size):
             self.build_graph_layout(graph_rect)
@@ -305,6 +322,7 @@ class DemoMode:
             f"Solution length: {self.result.path_length if self.result else 0}",
         ]
         draw_stats_block(surface, fonts, "Demo Stats", lines, stats_rect)
+        
         panel_card(surface, legend_rect)
         draw_panel_title(surface, fonts, legend_rect, "Legend", inset=14)
         legend_items = [
@@ -313,13 +331,37 @@ class DemoMode:
             ((145, 146, 152), "Explored"),
         ]
         for idx, (color, label) in enumerate(legend_items):
-            cy = legend_rect.y + 60 + idx * 26
+            cy = legend_rect.y + 52 + idx * 24 
             pygame.draw.circle(surface, color, (legend_rect.x + 22, cy + 8), 6)
             draw_text(surface, fonts["small"], label, TEXT, (legend_rect.x + 38, cy))
 
-        panel_card(surface, message_rect)
-        message = ellipsize_text(fonts["small"], self.message, message_rect.width - 36)
-        draw_text(surface, fonts["small"], message, TEXT, (message_rect.x + 18, message_rect.y + 16))
+        panel_card(surface, controls_rect)
+        draw_panel_title(surface, fonts, controls_rect, "Controls")
+        inner_x = controls_rect.x + 18
+        
+        # Pushed the inner content (buttons & dropdown) down within the control section
+        inner_y = controls_rect.y + 64 
+        inner_w = controls_rect.width - 36
+        dropdown_w = min(170, max(140, inner_w // 3))
+        
+        buttons_rect = pygame.Rect(
+            inner_x,
+            inner_y,
+            max(180, inner_w - dropdown_w - 12),
+            42,
+        )
+        dropdown_rect = pygame.Rect(buttons_rect.right + 12, inner_y + 2, dropdown_w, 38)
+        self.speed_dropdown.rect = dropdown_rect
+        layout_buttons_in_rect(
+            self.buttons,
+            buttons_rect,
+            min_width=88,
+            max_width=132,
+            gap=8,
+            fixed_height=42,
+            max_columns=3,
+        )
 
         for button in self.buttons:
             button.draw(surface, fonts, mouse_pos)
+        self.speed_dropdown.draw(surface, fonts, mouse_pos)
