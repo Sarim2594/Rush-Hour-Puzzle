@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 set -eu
-
+# us this in bash python -m pytest tests -vv -ra -o console_output_style=classic --disable-warnings
 # Resolve project root from this script location
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 PROJECT_ROOT="$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)"
