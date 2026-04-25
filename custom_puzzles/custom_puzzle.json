@@ -4,23 +4,23 @@
   "vehicles": [
     {
       "id": "A",
-      "row": 2,
+      "row": 1,
       "col": 4,
-      "length": 3,
-      "orientation": "V"
+      "length": 2,
+      "orientation": "H"
     },
     {
       "id": "B",
-      "row": 2,
-      "col": 2,
+      "row": 3,
+      "col": 3,
       "length": 3,
-      "orientation": "V"
+      "orientation": "H"
     },
     {
       "id": "C",
-      "row": 0,
-      "col": 3,
-      "length": 2,
+      "row": 1,
+      "col": 2,
+      "length": 3,
       "orientation": "V"
     },
     {

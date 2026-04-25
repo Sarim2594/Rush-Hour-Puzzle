@@ -15,11 +15,11 @@
       "best_moves": 1,
       "best_time": 5.0,
       "last_result": {
-        "timestamp": "2026-04-25T15:05:48",
+        "timestamp": "2026-04-25T16:42:05",
         "puzzle_id": "already_one_move",
         "solved": true,
         "moves": 1,
-        "elapsed_seconds": 5.001
+        "elapsed_seconds": 5.0
       }
     },
     "easy_starter": {
@@ -35,13 +35,13 @@
     },
     "expert_gauntlet": {
       "best_moves": 7,
-      "best_time": 25.517,
+      "best_time": 7.862,
       "last_result": {
-        "timestamp": "2026-04-22T21:31:40",
+        "timestamp": "2026-04-25T16:54:40",
         "puzzle_id": "expert_gauntlet",
         "solved": true,
         "moves": 7,
-        "elapsed_seconds": 25.517
+        "elapsed_seconds": 7.862
       }
     },
     "gridlock": {
@@ -235,6 +235,20 @@
       "solved": true,
       "moves": 1,
       "elapsed_seconds": 5.001
+    },
+    {
+      "timestamp": "2026-04-25T16:42:05",
+      "puzzle_id": "already_one_move",
+      "solved": true,
+      "moves": 1,
+      "elapsed_seconds": 5.0
+    },
+    {
+      "timestamp": "2026-04-25T16:54:40",
+      "puzzle_id": "expert_gauntlet",
+      "solved": true,
+      "moves": 7,
+      "elapsed_seconds": 7.862
     }
   ]
 }

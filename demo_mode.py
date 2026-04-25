@@ -10,18 +10,23 @@ from ui import (
     ACCENT,
     ACCENT_DARK,
     MUTED,
-    PANEL_X,
     SUCCESS,
     TEXT,
     WARNING,
     Button,
     draw_background,
     draw_board,
+    draw_panel_title,
+    draw_screen_title,
     draw_stats_block,
     draw_text,
     ellipsize_text,
     format_seconds,
+    get_board_screen_layout,
+    layout_buttons_in_rect,
     make_button_row,
+    measure_stats_block_height,
+    measure_text_panel_height,
     panel_card,
 )
 
@@ -54,7 +59,7 @@ class DemoMode:
                 ("Slower", "slower"),
                 ("Faster", "faster"),
             ],
-            PANEL_X,
+            0,
             520,
             width=96,
             gap=8,
@@ -62,41 +67,37 @@ class DemoMode:
         self._last_graph_rect: pygame.Rect | None = None
 
     def _layout(self, surface: pygame.Surface) -> dict[str, pygame.Rect]:
-        width, height = surface.get_size()
-        right_margin = 24
-        top = 100
-        gap = 10
-        panel_x = PANEL_X
-        available_w = max(380, width - panel_x - right_margin)
-        bottom_padding = 18
-        message_h = 50
-        buttons_h = 48
-        row_h = max(126, min(182, int(height * 0.22)))
-        min_graph_h = 170
-        preferred_graph_h = max(240, min(430, int(height * 0.48)))
-        fixed_stack = row_h + buttons_h + message_h + bottom_padding + (gap * 3)
-        available_for_graph = max(min_graph_h, height - top - fixed_stack)
-        graph_h = min(preferred_graph_h, available_for_graph)
-        graph_rect = pygame.Rect(panel_x, top, available_w, graph_h)
+        base = get_board_screen_layout(surface, sidebar_min_width=360)
+        sidebar = base.sidebar
+        gap = base.chrome.gap
+        message_h = 66
+        buttons_h = 56 if sidebar.width >= 520 else 122
+        stats_h = measure_stats_block_height(5)
+        legend_h = measure_text_panel_height(3, top_padding=60, line_gap=26, bottom_padding=20)
+        info_h = max(stats_h, legend_h)
+        min_graph_h = 170 if not base.stacked else 150
+        graph_h = max(min_graph_h, sidebar.height - info_h - buttons_h - message_h - gap * 3)
+        graph_h = min(graph_h, max(min_graph_h, int(sidebar.height * 0.52)))
+        graph_rect = pygame.Rect(sidebar.x, sidebar.y, sidebar.width, graph_h)
         row_top = graph_rect.bottom + gap
-        stats_w = int(available_w * 0.72)
-        legend_w = max(120, available_w - stats_w - gap)
-        stats_rect = pygame.Rect(panel_x, row_top, stats_w, row_h)
-        legend_rect = pygame.Rect(stats_rect.right + gap, row_top, legend_w, row_h)
-        buttons_y = row_top + row_h + gap
+        stats_w = int(sidebar.width * (0.68 if sidebar.width > 430 else 0.62))
+        legend_w = max(120, sidebar.width - stats_w - gap)
+        stats_rect = pygame.Rect(sidebar.x, row_top, stats_w, info_h)
+        legend_rect = pygame.Rect(stats_rect.right + gap, row_top, legend_w, info_h)
+        buttons_y = row_top + info_h + gap
         message_y = buttons_y + buttons_h + gap
-        max_message_y = height - message_h - bottom_padding
-        if message_y > max_message_y:
-            overflow = message_y - max_message_y
+        if message_y + message_h > sidebar.bottom:
+            overflow = message_y + message_h - sidebar.bottom
             graph_rect.height = max(min_graph_h, graph_rect.height - overflow)
             row_top = graph_rect.bottom + gap
             stats_rect.y = row_top
             legend_rect.y = row_top
-            buttons_y = row_top + row_h + gap
+            buttons_y = row_top + info_h + gap
             message_y = buttons_y + buttons_h + gap
-        message_rect = pygame.Rect(panel_x, message_y, available_w, message_h)
-        buttons_rect = pygame.Rect(panel_x, buttons_y, available_w, buttons_h)
+        message_rect = pygame.Rect(sidebar.x, message_y, sidebar.width, message_h)
+        buttons_rect = pygame.Rect(sidebar.x, buttons_y, sidebar.width, buttons_h)
         return {
+            "board": base.board,
             "graph": graph_rect,
             "stats": stats_rect,
             "legend": legend_rect,
@@ -208,7 +209,7 @@ class DemoMode:
         unique_depths = sorted({self.result.depth_by_key.get(key, 0) for key in sampled_keys})
         depth_columns = {depth: index for index, depth in enumerate(unique_depths)}
         if graph_rect is None:
-            graph_rect = pygame.Rect(PANEL_X, 100, 490, 370)
+            graph_rect = pygame.Rect(0, 0, 490, 370)
         levels: dict[int, list[StateKey]] = {}
         for key in sampled_keys:
             levels.setdefault(self.result.depth_by_key.get(key, 0), []).append(key)
@@ -273,30 +274,25 @@ class DemoMode:
         draw_background(surface)
         mouse_pos = pygame.mouse.get_pos()
         layout = self._layout(surface)
+        board_rect = layout["board"]
         graph_rect = layout["graph"]
         stats_rect = layout["stats"]
         legend_rect = layout["legend"]
         message_rect = layout["message"]
         buttons_rect = layout["buttons"]
-        button_gap = 8
-        button_count = len(self.buttons)
-        total_gap = button_gap * max(0, button_count - 1)
-        raw_button_w = (buttons_rect.width - total_gap) // max(1, button_count)
-        button_w = max(74, min(110, raw_button_w))
-        total_w = button_w * button_count + total_gap
-        start_x = buttons_rect.x + max(0, (buttons_rect.width - total_w) // 2)
-        for index, button in enumerate(self.buttons):
-            button.rect.y = buttons_rect.y
-            button.rect.x = start_x + index * (button_w + button_gap)
-            button.rect.width = button_w
-            button.rect.height = buttons_rect.height
+        layout_buttons_in_rect(self.buttons, buttons_rect, min_width=90, max_width=130, gap=8)
 
         if self.result and (self._last_graph_rect is None or self._last_graph_rect.size != graph_rect.size):
             self.build_graph_layout(graph_rect)
             self._last_graph_rect = graph_rect.copy()
 
-        draw_text(surface, fonts["title"], f"Visual Demo: {self.puzzle_name}", TEXT, (60, 28))
-        draw_board(surface, self.display_board, fonts)
+        draw_screen_title(
+            surface,
+            fonts,
+            f"Visual Demo: {self.puzzle_name}",
+            "Watch A* exploration, the graph frontier, and the final optimal replay.",
+        )
+        draw_board(surface, self.display_board, fonts, board_area=board_rect)
         self.draw_graph_panel(surface, fonts, graph_rect)
 
         solve_elapsed = self.result.elapsed_time if self.result else 0.0
@@ -310,8 +306,7 @@ class DemoMode:
         ]
         draw_stats_block(surface, fonts, "Demo Stats", lines, stats_rect)
         panel_card(surface, legend_rect)
-        draw_text(surface, fonts["heading"], "Legend", TEXT, (legend_rect.x + 14, legend_rect.y + 14))
-        pygame.draw.rect(surface, ACCENT, pygame.Rect(legend_rect.x + 14, legend_rect.y + 44, legend_rect.width - 28, 1))
+        draw_panel_title(surface, fonts, legend_rect, "Legend", inset=14)
         legend_items = [
             (ACCENT, "Current"),
             (SUCCESS, "On path"),
