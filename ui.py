@@ -14,6 +14,9 @@ BOARD_ORIGIN = (60, 90)
 CELL_SIZE = 88
 BOARD_PIXELS = GRID_SIZE * CELL_SIZE
 PANEL_X = BOARD_ORIGIN[0] + BOARD_PIXELS + 40
+DEFAULT_BOARD_RECT = pygame.Rect(BOARD_ORIGIN[0], BOARD_ORIGIN[1], BOARD_PIXELS, BOARD_PIXELS)
+_CURRENT_BOARD_RECT = DEFAULT_BOARD_RECT.copy()
+_CURRENT_CELL_SIZE = CELL_SIZE
 
 BACKGROUND = (236, 232, 222)
 PANEL_BG = (252, 250, 244)
@@ -47,36 +50,171 @@ VEHICLE_PALETTE = [
 def create_fonts() -> dict[str, pygame.font.Font]:
     return {
         "title": pygame.font.SysFont("segoeui", 34, bold=True),
-        "heading": pygame.font.SysFont("segoeui", 24, bold=True),
-        "body": pygame.font.SysFont("segoeui", 19),
-        "small": pygame.font.SysFont("segoeui", 16),
-        "button": pygame.font.SysFont("segoeui", 20, bold=True),
+        "heading": pygame.font.SysFont("Courier New", 24, bold=True),
+        "body": pygame.font.SysFont(" Times New Roman", 18),
+        "small": pygame.font.SysFont("Georgia", 16),
+        "button": pygame.font.SysFont("segoeui", 18, bold=True),
         "tiny": pygame.font.SysFont("segoeui", 13),
     }
 
 
-# ---------------------------------------------------------------------------
+@dataclass(frozen=True, slots=True)
+class ScreenChrome:
+    margin: int
+    gap: int
+    header_y: int
+    subtitle_y: int
+    content_top: int
+    content_bottom: int
+
+
+@dataclass(frozen=True, slots=True)
+class BoardScreenLayout:
+    chrome: ScreenChrome
+    board: pygame.Rect
+    sidebar: pygame.Rect
+    stacked: bool
+
+
+def clamp(value: int, minimum: int, maximum: int) -> int:
+    return max(minimum, min(maximum, value))
+
+
+def get_screen_chrome(surface: pygame.Surface) -> ScreenChrome:
+    width, height = surface.get_size()
+    margin = clamp(min(width, height) // 24, 20, 46)
+    gap = clamp(min(width, height) // 38, 10, 24)
+    header_y = clamp(margin - 2, 18, 40)
+    subtitle_y = header_y + 42
+    content_top = subtitle_y + 42
+    content_bottom = height - margin
+    return ScreenChrome(
+        margin=margin,
+        gap=gap,
+        header_y=header_y,
+        subtitle_y=subtitle_y,
+        content_top=content_top,
+        content_bottom=content_bottom,
+    )
+
+
+def get_board_screen_layout(surface: pygame.Surface, *, sidebar_min_width: int = 320) -> BoardScreenLayout:
+    width, height = surface.get_size()
+    chrome = get_screen_chrome(surface)
+    content_h = chrome.content_bottom - chrome.content_top
+    stacked = width < 1100 or width / max(1, height) < 1.38
+
+    if not stacked:
+        sidebar_w = clamp(int(width * 0.32), sidebar_min_width, int(width * 0.38))
+        board_size = min(content_h, width - chrome.margin * 2 - chrome.gap - sidebar_w)
+        if board_size < 300:
+            stacked = True
+        else:
+            board_y = chrome.content_top + max(0, (content_h - board_size) // 2)
+            board_rect = pygame.Rect(chrome.margin, board_y, board_size, board_size)
+            sidebar_rect = pygame.Rect(
+                board_rect.right + chrome.gap,
+                chrome.content_top,
+                width - board_rect.right - chrome.gap - chrome.margin,
+                content_h,
+            )
+            return BoardScreenLayout(chrome=chrome, board=board_rect, sidebar=sidebar_rect, stacked=False)
+
+    board_size = min(width - chrome.margin * 2, int(content_h * 0.47), int(height * 0.42))
+    board_size = clamp(board_size, 280, max(280, width - chrome.margin * 2))
+    board_rect = pygame.Rect((width - board_size) // 2, chrome.content_top, board_size, board_size)
+    sidebar_rect = pygame.Rect(
+        chrome.margin,
+        board_rect.bottom + chrome.gap,
+        width - chrome.margin * 2,
+        max(140, chrome.content_bottom - board_rect.bottom - chrome.gap),
+    )
+    return BoardScreenLayout(chrome=chrome, board=board_rect, sidebar=sidebar_rect, stacked=True)
+
+
+def set_board_geometry(rect: pygame.Rect) -> None:
+    global _CURRENT_BOARD_RECT, _CURRENT_CELL_SIZE
+    square = min(rect.width, rect.height)
+    _CURRENT_BOARD_RECT = pygame.Rect(rect.x, rect.y, square, square)
+    _CURRENT_CELL_SIZE = max(1, square // GRID_SIZE)
+
+
+def current_cell_size() -> int:
+    return _CURRENT_CELL_SIZE
+
+
+def draw_screen_title(
+    surface: pygame.Surface,
+    fonts: dict[str, pygame.font.Font],
+    title: str,
+    subtitle: str | None = None,
+) -> ScreenChrome:
+    chrome = get_screen_chrome(surface)
+    draw_text(surface, fonts["title"], title, TEXT, (chrome.margin, chrome.header_y))
+    if subtitle:
+        draw_text(surface, fonts["small"], subtitle, MUTED, (chrome.margin, chrome.subtitle_y))
+    return chrome
+
+
+def draw_panel_title(
+    surface: pygame.Surface,
+    fonts: dict[str, pygame.font.Font],
+    rect: pygame.Rect,
+    title: str,
+    *,
+    inset: int = 18,
+) -> None:
+    draw_text(surface, fonts["heading"], title, TEXT, (rect.x + inset, rect.y + 14))
+    pygame.draw.rect(surface, ACCENT, pygame.Rect(rect.x + inset, rect.y + 44, rect.width - inset * 2, 1))
+
+
+def layout_buttons_in_rect(
+    buttons: list["Button"],
+    rect: pygame.Rect,
+    *,
+    min_width: int = 86,
+    max_width: int = 170,
+    gap: int = 10,
+) -> None:
+    count = max(1, len(buttons))
+    columns = count if rect.width >= count * (min_width + gap) - gap else max(2, rect.width // max(min_width + gap, 1))
+    columns = min(columns, count)
+    rows = math.ceil(count / columns)
+    button_w = clamp((rect.width - gap * max(0, columns - 1)) // columns, min_width, max_width)
+    total_w = button_w * columns + gap * max(0, columns - 1)
+    start_x = rect.x + max(0, (rect.width - total_w) // 2)
+    button_h = max(42, (rect.height - gap * max(0, rows - 1)) // rows)
+    for index, button in enumerate(buttons):
+        row = index // columns
+        col = index % columns
+        button.rect.x = start_x + col * (button_w + gap)
+        button.rect.y = rect.y + row * (button_h + gap)
+        button.rect.width = button_w
+        button.rect.height = button_h
+
+
 # Geometry helpers
-# ---------------------------------------------------------------------------
 def board_rect() -> pygame.Rect:
-    return pygame.Rect(BOARD_ORIGIN[0], BOARD_ORIGIN[1], BOARD_PIXELS, BOARD_PIXELS)
+    return _CURRENT_BOARD_RECT.copy()
 
 
 def cell_rect(row: int, col: int) -> pygame.Rect:
+    rect = board_rect()
     return pygame.Rect(
-        BOARD_ORIGIN[0] + col * CELL_SIZE,
-        BOARD_ORIGIN[1] + row * CELL_SIZE,
-        CELL_SIZE,
-        CELL_SIZE,
+        rect.x + col * _CURRENT_CELL_SIZE,
+        rect.y + row * _CURRENT_CELL_SIZE,
+        _CURRENT_CELL_SIZE,
+        _CURRENT_CELL_SIZE,
     )
 
 
 def screen_to_cell(position: tuple[int, int]) -> tuple[int, int] | None:
-    if not board_rect().collidepoint(position):
+    rect = board_rect()
+    if not rect.collidepoint(position):
         return None
     x, y = position
-    col = (x - BOARD_ORIGIN[0]) // CELL_SIZE
-    row = (y - BOARD_ORIGIN[1]) // CELL_SIZE
+    col = (x - rect.x) // _CURRENT_CELL_SIZE
+    row = (y - rect.y) // _CURRENT_CELL_SIZE
     if 0 <= row < GRID_SIZE and 0 <= col < GRID_SIZE:
         return int(row), int(col)
     return None
@@ -102,8 +240,7 @@ def draw_text(
     font: pygame.font.Font,
     text: str,
     color: tuple[int, int, int],
-    position: tuple[int, int],
-) -> None:
+    position: tuple[int, int]) -> None:
     rendered = font.render(text, True, color)
     surface.blit(rendered, position)
 
@@ -134,17 +271,22 @@ def panel_card(surface: pygame.Surface, rect: pygame.Rect) -> None:
 
 def draw_background(surface: pygame.Surface) -> None:
     width, height = surface.get_size()
-    surface.fill(BACKGROUND)
-    pygame.draw.rect(surface, (218, 212, 200), pygame.Rect(0, height - 120, width, 120))
+    surface.fill((231, 225, 213))
+    for index, color in enumerate(((244, 241, 233), (236, 232, 222), (226, 220, 208))):
+        band_h = height // 3 + 2
+        pygame.draw.rect(surface, color, pygame.Rect(0, index * (band_h - 2), width, band_h))
+    glow = pygame.Surface((width, height), pygame.SRCALPHA)
+    pygame.draw.ellipse(glow, (255, 255, 255, 48), pygame.Rect(-width * 0.12, -height * 0.18, width * 0.7, height * 0.5))
+    pygame.draw.ellipse(glow, (58, 128, 210, 28), pygame.Rect(width * 0.48, -height * 0.08, width * 0.5, height * 0.34))
+    pygame.draw.rect(glow, (190, 180, 164, 70), pygame.Rect(0, height - int(height * 0.18), width, int(height * 0.2)))
+    surface.blit(glow, (0, 0))
 
 
 def draw_scanlines(surface: pygame.Surface, alpha: int = 28) -> None:
     return None
 
 
-# ---------------------------------------------------------------------------
 # Buttons
-# ---------------------------------------------------------------------------
 @dataclass(slots=True)
 class Button:
     label: str
@@ -203,9 +345,8 @@ def make_button_row(
     return buttons
 
 
-# ---------------------------------------------------------------------------
+
 # Board drawing
-# ---------------------------------------------------------------------------
 def _draw_dashed_rect(surface: pygame.Surface, rect: pygame.Rect, color: tuple[int, int, int], dash: int = 12, gap: int = 7) -> None:
     for x in range(rect.left, rect.right, dash + gap):
         pygame.draw.line(surface, color, (x, rect.top), (min(x + dash, rect.right), rect.top), 2)
@@ -256,42 +397,26 @@ def draw_vehicle(surface: pygame.Surface, rect: pygame.Rect, *, orientation: str
             hood = pygame.Rect(shell.left + 6, shell.top + 6, int(shell.width * 0.25), shell.height - 12)
             cabin = pygame.Rect(hood.right + 4, shell.top + 8, int(shell.width * 0.42), shell.height - 16)
             trunk = pygame.Rect(cabin.right + 4, shell.top + 6, shell.right - cabin.right - 10, shell.height - 12)
-            windshield = pygame.Rect(cabin.left + 2, cabin.top + 2, cabin.width // 2 - 3, cabin.height - 4)
-            rear_glass = pygame.Rect(cabin.centerx + 1, cabin.top + 2, cabin.width // 2 - 3, cabin.height - 4)
             headlight = pygame.Rect(shell.right - 9, shell.top + 11, 4, shell.height - 22)
             taillight = pygame.Rect(shell.left + 5, shell.top + 11, 4, shell.height - 22)
             pygame.draw.rect(surface, _shade(color, -5), hood, border_radius=8)
             pygame.draw.rect(surface, _shade(color, 10), trunk, border_radius=8)
-            arch_top = pygame.Rect(shell.left + 12, shell.top - 1, shell.width - 24, 4)
             arch_bottom = pygame.Rect(shell.left + 12, shell.bottom - 3, shell.width - 24, 4)
-            pygame.draw.rect(surface, _shade(color, -35), arch_top, border_radius=2)
             pygame.draw.rect(surface, _shade(color, -35), arch_bottom, border_radius=2)
         else:
             hood = pygame.Rect(shell.left + 6, shell.top + 6, shell.width - 12, int(shell.height * 0.25))
             cabin = pygame.Rect(shell.left + 8, hood.bottom + 4, shell.width - 16, int(shell.height * 0.42))
             trunk = pygame.Rect(shell.left + 6, cabin.bottom + 4, shell.width - 12, shell.bottom - cabin.bottom - 10)
-            windshield = pygame.Rect(cabin.left + 2, cabin.top + 2, cabin.width - 4, cabin.height // 2 - 3)
-            rear_glass = pygame.Rect(cabin.left + 2, cabin.centery + 1, cabin.width - 4, cabin.height // 2 - 3)
             headlight = pygame.Rect(shell.left + 11, shell.bottom - 9, shell.width - 22, 4)
             taillight = pygame.Rect(shell.left + 11, shell.top + 5, shell.width - 22, 4)
             pygame.draw.rect(surface, _shade(color, -5), hood, border_radius=8)
             pygame.draw.rect(surface, _shade(color, 10), trunk, border_radius=8)
-            arch_left = pygame.Rect(shell.left - 1, shell.top + 12, 4, shell.height - 24)
             arch_right = pygame.Rect(shell.right - 3, shell.top + 12, 4, shell.height - 24)
-            pygame.draw.rect(surface, _shade(color, -35), arch_left, border_radius=2)
             pygame.draw.rect(surface, _shade(color, -35), arch_right, border_radius=2)
         pygame.draw.rect(surface, _shade(color, -3), cabin, border_radius=8)
-        pygame.draw.rect(surface, glass, windshield, border_radius=4)
-        pygame.draw.rect(surface, glass, rear_glass, border_radius=4)
         pygame.draw.rect(surface, (252, 238, 184), headlight, border_radius=2)
         pygame.draw.rect(surface, (176, 52, 52), taillight, border_radius=2)
-        if is_red:
-            stripe = (
-                pygame.Rect(shell.centerx - 3, shell.top + 8, 6, shell.height - 16)
-                if orientation == "H"
-                else pygame.Rect(shell.left + 8, shell.centery - 3, shell.width - 16, 6)
-            )
-            pygame.draw.rect(surface, (248, 248, 248), stripe, border_radius=3)
+
     else:
         if orientation == "H":
             cab = pygame.Rect(shell.left + 6, shell.top + 7, int(shell.width * 0.34), shell.height - 14)
@@ -306,7 +431,6 @@ def draw_vehicle(surface: pygame.Surface, rect: pygame.Rect, *, orientation: str
             side_line1 = pygame.Rect(cargo.left + 8, cargo.top + 6, 2, cargo.height - 12)
             side_line2 = pygame.Rect(cargo.right - 10, cargo.top + 6, 2, cargo.height - 12)
         pygame.draw.rect(surface, _shade(color, 18), cab, border_radius=5)
-        pygame.draw.rect(surface, glass, cab.inflate(-8, -8), border_radius=4)
         pygame.draw.rect(surface, _shade(color, -8), cargo, border_radius=5)
         pygame.draw.rect(surface, (252, 238, 184), front_light, border_radius=2)
         pygame.draw.rect(surface, _shade(color, -26), side_line1, border_radius=2)
@@ -328,7 +452,10 @@ def draw_board(
     *,
     selected_vehicle_id: str | None = None,
     hint_move: Move | None = None,
+    board_area: pygame.Rect | None = None,
 ) -> dict[str, pygame.Rect]:
+    if board_area is not None:
+        set_board_geometry(board_area)
     rects: dict[str, pygame.Rect] = {}
     grid_rect = board_rect()
 
@@ -353,8 +480,8 @@ def draw_board(
     hint_vehicle_id = hint_move.vehicle_id if hint_move else None
     for vehicle in board.vehicles:
         start_cell = cell_rect(vehicle.row, vehicle.col)
-        width = vehicle.length * CELL_SIZE if vehicle.orientation == "H" else CELL_SIZE
-        height = CELL_SIZE if vehicle.orientation == "H" else vehicle.length * CELL_SIZE
+        width = vehicle.length * _CURRENT_CELL_SIZE if vehicle.orientation == "H" else _CURRENT_CELL_SIZE
+        height = _CURRENT_CELL_SIZE if vehicle.orientation == "H" else vehicle.length * _CURRENT_CELL_SIZE
         v_rect = pygame.Rect(start_cell.x + 6, start_cell.y + 6, width - 12, height - 12)
         rects[vehicle.id] = v_rect
 
@@ -395,6 +522,14 @@ def draw_stats_block(
     pygame.draw.rect(surface, ACCENT, underline)
     for index, line in enumerate(lines):
         draw_text(surface, fonts["body"], line, TEXT, (rect.x + 18, rect.y + 56 + index * 28))
+
+
+def measure_stats_block_height(line_count: int) -> int:
+    return 74 + max(1, line_count) * 28
+
+
+def measure_text_panel_height(line_count: int, *, top_padding: int = 56, line_gap: int = 28, bottom_padding: int = 22) -> int:
+    return top_padding + max(1, line_count) * line_gap + bottom_padding
 
 
 def format_seconds(seconds: float) -> str:

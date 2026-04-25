@@ -10,15 +10,21 @@ from ui import (
     ACCENT,
     MUTED,
     PANEL_BG,
-    PANEL_X,
     TEXT,
     WHITE,
     Button,
+    clamp,
     draw_background,
     draw_board,
+    draw_panel_title,
+    draw_screen_title,
     draw_text,
+    get_board_screen_layout,
+    layout_buttons_in_rect,
     make_button_row,
+    measure_text_panel_height,
     panel_card,
+    set_board_geometry,
     screen_to_cell,
 )
 
@@ -45,24 +51,25 @@ class EditorMode:
         self.puzzle_name = "custom_puzzle"
         self.message = "Click a grid cell to place or move vehicles."
         self.loadable_paths = self.refresh_saved_paths()
+        self._saved_item_rects: list[pygame.Rect] = []
         self.buttons = (
             make_button_row(
                 [("Back", "back"), ("Save", "save"), ("Delete", "delete"), ("Clear", "clear")],
-                PANEL_X,
+                0,
                 540,
                 width=96,
                 gap=8,
             )
             + make_button_row(
                 [
-                    ("Add Car", "car"),
-                    ("Add Truck", "truck"),
-                    ("Add Red", "red"),
+                    ("Car", "car"),
+                    ("Truck", "truck"),
+                    ("Red Car", "red"),
                     (self._orientation_button_label(), "toggle_orientation"),
                 ],
-                PANEL_X,
-                600,
-                width=84,
+                0,
+                540,
+                width=96,
                 gap=8,
             )
         )
@@ -134,6 +141,7 @@ class EditorMode:
             Board(updated, metadata={"id": self.puzzle_name, "name": self.puzzle_name.title()})
             self.vehicles = sorted(updated, key=lambda vehicle: vehicle.id)
             self.message = f"Moved {self.selected_vehicle_id}."
+            self.selected_vehicle_id = None
         except ValueError as exc:
             self.message = str(exc)
 
@@ -172,6 +180,9 @@ class EditorMode:
         self.message = f"Loaded {self.puzzle_name}."
 
     def handle_event(self, event: pygame.event.Event) -> str | None:
+        surface = pygame.display.get_surface()
+        if surface is not None:
+            set_board_geometry(get_board_screen_layout(surface, sidebar_min_width=360).board)
         for button in self.buttons:
             action = button.handle_event(event)
             if action:
@@ -227,9 +238,10 @@ class EditorMode:
                 self.place_vehicle(row, col)
                 return None
 
-            saved_list_origin = (PANEL_X, 140)
             for index, path in enumerate(self.loadable_paths[:6]):
-                rect = pygame.Rect(saved_list_origin[0] + 12, 387 + index * 24, 336, 22)
+                if index >= len(self._saved_item_rects):
+                    break
+                rect = self._saved_item_rects[index]
                 if rect.collidepoint(event.pos):
                     self.load_file(index)
                     return None
@@ -239,10 +251,43 @@ class EditorMode:
     def update(self, dt: float) -> None:
         return None
 
+    def _layout(self, surface: pygame.Surface) -> dict[str, pygame.Rect]:
+        base = get_board_screen_layout(surface, sidebar_min_width=360)
+        sidebar = base.sidebar
+        gap = base.chrome.gap
+        config_h = measure_text_panel_height(6, top_padding=58, line_gap=26, bottom_padding=18)
+        saved_h = clamp(sidebar.height // 3, 180, 250)
+        buttons_h = 112 if sidebar.width < 460 else 110
+        message_h = 68
+        total_h = config_h + saved_h + buttons_h + message_h + gap * 3
+        if total_h > sidebar.height:
+            overflow = total_h - sidebar.height
+            saved_h = max(140, saved_h - overflow)
+        config_rect = pygame.Rect(sidebar.x, sidebar.y, sidebar.width, config_h)
+        saved_rect = pygame.Rect(sidebar.x, config_rect.bottom + gap, sidebar.width, saved_h)
+        buttons_rect = pygame.Rect(sidebar.x, saved_rect.bottom + gap, sidebar.width, buttons_h)
+        message_rect = pygame.Rect(sidebar.x, buttons_rect.bottom + gap, sidebar.width, message_h)
+        if message_rect.bottom > sidebar.bottom:
+            message_rect.y = sidebar.bottom - message_rect.height
+            buttons_rect.y = message_rect.y - gap - buttons_rect.height
+        return {
+            "board": base.board,
+            "config": config_rect,
+            "saved": saved_rect,
+            "buttons": buttons_rect,
+            "message": message_rect,
+        }
+
     def draw(self, surface: pygame.Surface, fonts: dict[str, pygame.font.Font]) -> None:
         draw_background(surface)
         mouse_pos = pygame.mouse.get_pos()
-        draw_text(surface, fonts["title"], "Puzzle Editor", TEXT, (60, 28))
+        draw_screen_title(
+            surface,
+            fonts,
+            "Puzzle Editor",
+            "Build layouts, place vehicles, and save custom Rush Hour boards cleanly on any screen.",
+        )
+        layout = self._layout(surface)
 
         board = self.current_board()
         draw_board(
@@ -250,12 +295,12 @@ class EditorMode:
             board or Board(self.vehicles, metadata={"id": "preview", "name": "Preview"}),
             fonts,
             selected_vehicle_id=self.selected_vehicle_id,
+            board_area=layout["board"],
         )
 
-        config_rect = pygame.Rect(PANEL_X, 100, 360, 220)
+        config_rect = layout["config"]
         panel_card(surface, config_rect)
-        draw_text(surface, fonts["heading"], "Editor Settings", TEXT, (config_rect.x + 18, config_rect.y + 14))
-        pygame.draw.rect(surface, ACCENT, pygame.Rect(config_rect.x + 18, config_rect.y + 44, config_rect.width - 36, 1))
+        draw_panel_title(surface, fonts, config_rect, "Editor Settings")
         add_mode = "Red car" if self.pending_kind == "red" else f"{self.pending_length}-tile vehicle"
         config_lines = [
             f"Name: {self.puzzle_name[:18]}",
@@ -269,23 +314,26 @@ class EditorMode:
             color = MUTED if index >= 4 else TEXT
             draw_text(surface, fonts["small"], line, color, (config_rect.x + 18, config_rect.y + 58 + index * 26))
 
-        saved_rect = pygame.Rect(PANEL_X, 335, 360, 194)
+        saved_rect = layout["saved"]
         panel_card(surface, saved_rect)
-        draw_text(surface, fonts["heading"], "Saved Custom Puzzles", TEXT, (saved_rect.x + 18, saved_rect.y + 14))
-        pygame.draw.rect(surface, ACCENT, pygame.Rect(saved_rect.x + 18, saved_rect.y + 44, saved_rect.width - 36, 1))
+        draw_panel_title(surface, fonts, saved_rect, "Saved Custom Puzzles")
+        self._saved_item_rects = []
         if not self.loadable_paths:
             draw_text(surface, fonts["small"], "No saved custom puzzles yet.", MUTED, (saved_rect.x + 18, saved_rect.y + 62))
         for index, path in enumerate(self.loadable_paths[:6]):
-            rect = pygame.Rect(saved_rect.x + 12, saved_rect.y + 52 + index * 24, 336, 22)
+            rect = pygame.Rect(saved_rect.x + 12, saved_rect.y + 52 + index * 24, saved_rect.width - 24, 22)
+            self._saved_item_rects.append(rect)
             hovered = rect.collidepoint(mouse_pos)
             fill = (230, 238, 248) if hovered else PANEL_BG
             pygame.draw.rect(surface, fill, rect, border_radius=6)
             pygame.draw.rect(surface, (205, 206, 198), rect, width=1, border_radius=6)
             draw_text(surface, fonts["small"], path.stem[:30], TEXT, (rect.x + 10, rect.y + 2))
 
-        message_rect = pygame.Rect(PANEL_X, 670, 360, 56)
+        layout_buttons_in_rect(self.buttons, layout["buttons"], min_width=64, max_width=160, gap=10)
+        message_rect = layout["message"]
         panel_card(surface, message_rect)
-        draw_text(surface, fonts["small"], self.message[:46], TEXT, (message_rect.x + 18, message_rect.y + 18))
+        message = self.message if len(self.message) <= 52 else f"{self.message[:49]}..."
+        draw_text(surface, fonts["small"], message, TEXT, (message_rect.x + 18, message_rect.y + 22))
 
         for button in self.buttons:
             button.draw(surface, fonts, mouse_pos)

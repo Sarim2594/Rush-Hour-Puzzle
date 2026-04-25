@@ -14,7 +14,6 @@ from ui import WINDOW_HEIGHT, WINDOW_WIDTH, create_fonts
 
 def test_screen_objects_initialize_and_draw() -> None:
     pygame.init()
-    surface = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
     fonts = create_fonts()
     board = load_puzzle_library()[0]
 
@@ -27,8 +26,10 @@ def test_screen_objects_initialize_and_draw() -> None:
         EditorMode(),
     ]
 
-    for screen in screens:
-        screen.update(0.016)
-        screen.draw(surface, fonts)
+    for size in ((WINDOW_WIDTH, WINDOW_HEIGHT), (960, 900), (1440, 900)):
+        surface = pygame.display.set_mode(size)
+        for screen in screens:
+            screen.update(0.016)
+            screen.draw(surface, fonts)
 
     pygame.quit()
