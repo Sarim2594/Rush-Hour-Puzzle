@@ -45,3 +45,59 @@ def test_custom_puzzle_round_trip(tmp_path, monkeypatch) -> None:
     loaded = storage.load_board(target)
     assert loaded == board
     assert json.loads(target.read_text())["id"] == "custom_case"
+
+
+def test_puzzle_library_is_sorted_by_difficulty_then_name(tmp_path, monkeypatch) -> None:
+    puzzles_dir = tmp_path / "puzzles"
+    custom_dir = tmp_path / "custom"
+    data_dir = tmp_path / "data"
+    monkeypatch.setattr(storage, "PUZZLES_DIR", puzzles_dir)
+    monkeypatch.setattr(storage, "CUSTOM_PUZZLES_DIR", custom_dir)
+    monkeypatch.setattr(storage, "DATA_DIR", data_dir)
+    monkeypatch.setattr(storage, "HISTORY_PATH", data_dir / "solve_history.json")
+
+    puzzles_dir.mkdir(parents=True)
+    custom_dir.mkdir(parents=True)
+    data_dir.mkdir(parents=True)
+
+    (puzzles_dir / "hard.json").write_text(
+        json.dumps(
+            {
+                "id": "hard_case",
+                "name": "Zulu",
+                "difficulty": "Hard",
+                "vehicles": [
+                    {"id": "X", "row": 2, "col": 0, "length": 2, "orientation": "H", "is_red": True},
+                    {"id": "A", "row": 0, "col": 2, "length": 3, "orientation": "V"},
+                ],
+            }
+        )
+    )
+    (puzzles_dir / "easy.json").write_text(
+        json.dumps(
+            {
+                "id": "easy_case",
+                "name": "Alpha",
+                "difficulty": "Easy",
+                "vehicles": [
+                    {"id": "X", "row": 2, "col": 0, "length": 2, "orientation": "H", "is_red": True},
+                    {"id": "A", "row": 0, "col": 2, "length": 3, "orientation": "V"},
+                ],
+            }
+        )
+    )
+    (custom_dir / "custom.json").write_text(
+        json.dumps(
+            {
+                "id": "custom_case",
+                "name": "Beta",
+                "vehicles": [
+                    {"id": "X", "row": 2, "col": 0, "length": 2, "orientation": "H", "is_red": True},
+                    {"id": "A", "row": 0, "col": 2, "length": 3, "orientation": "V"},
+                ],
+            }
+        )
+    )
+
+    boards = storage.load_puzzle_library()
+    assert [board.metadata.get("name") for board in boards] == ["Alpha", "Zulu", "Beta"]

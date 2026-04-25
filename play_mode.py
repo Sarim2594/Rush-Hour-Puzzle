@@ -22,7 +22,6 @@ from ui import (
     draw_text,
     format_seconds,
     get_board_screen_layout,
-    ellipsize_text,
     layout_buttons_in_rect,
     make_button_row,
     measure_stats_block_height,
@@ -201,25 +200,19 @@ class PlayMode:
         sidebar = base.sidebar
         stats_h = measure_stats_block_height(4)
         help_h = measure_text_panel_height(4)
-        message_h = 72
         buttons_h = 54 if sidebar.width >= 430 else 118
-        total_h = stats_h + help_h + buttons_h + message_h + gap * 3
+        total_h = stats_h + help_h + buttons_h + gap * 2
         if total_h > sidebar.height:
             overflow = total_h - sidebar.height
             help_h = max(120, help_h - overflow)
         stats_rect = pygame.Rect(sidebar.x, sidebar.y, sidebar.width, stats_h)
         help_rect = pygame.Rect(sidebar.x, stats_rect.bottom + gap, sidebar.width, help_h)
         buttons_rect = pygame.Rect(sidebar.x, help_rect.bottom + gap, sidebar.width, buttons_h)
-        message_rect = pygame.Rect(sidebar.x, buttons_rect.bottom + gap, sidebar.width, message_h)
-        if message_rect.bottom > sidebar.bottom:
-            message_rect.y = sidebar.bottom - message_rect.height
-            buttons_rect.y = message_rect.y - gap - buttons_rect.height
         return {
             "board": base.board,
             "stats": stats_rect,
             "help": help_rect,
             "buttons": buttons_rect,
-            "message": message_rect,
         }
 
     def draw(self, surface: pygame.Surface, fonts: dict[str, pygame.font.Font]) -> None:
@@ -235,7 +228,6 @@ class PlayMode:
         info_rect = layout["stats"]
         help_rect = layout["help"]
         buttons_rect = layout["buttons"]
-        message_rect = layout["message"]
         draw_board(
             surface,
             self.display_board(),
@@ -268,9 +260,6 @@ class PlayMode:
             draw_text(surface, fonts["small"], line, MUTED, (help_rect.x + 18, help_rect.y + 56 + index * 28))
 
         layout_buttons_in_rect(self.buttons, buttons_rect, min_width=96, max_width=150, gap=10)
-        panel_card(surface, message_rect)
-        message = ellipsize_text(fonts["small"], self.message, message_rect.width - 36)
-        draw_text(surface, fonts["small"], message, TEXT, (message_rect.x + 18, message_rect.y + 22))
 
         for button in self.buttons:
             button.draw(surface, fonts, mouse_pos)

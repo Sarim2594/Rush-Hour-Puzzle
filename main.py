@@ -419,13 +419,12 @@ class PuzzleSelectScreen:
             if hovered:
                 pygame.draw.rect(surface, ACCENT, rect, width=2, border_radius=10)
             draw_text(surface, fonts["heading"], ellipsize_text(fonts["heading"], board.metadata.get("name", "Puzzle"), rect.width - 36), TEXT, (rect.x + 18, rect.y + 18))
-            draw_text(surface, fonts["small"], f"ID: {board.metadata.get('id', '-')}", MUTED, (rect.x + 18, rect.y + 64))
             draw_text(
                 surface,
                 fonts["small"],
                 f"Difficulty: {board.metadata.get('difficulty', 'Custom')}",
                 MUTED,
-                (rect.x + 18, rect.y + 92),
+                (rect.x + 18, rect.y + 72),
             )
 
         self.back_button.draw(surface, fonts, mouse_pos)

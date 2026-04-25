@@ -32,3 +32,13 @@ def test_screen_objects_initialize_and_draw() -> None:
         screen.draw(surface, fonts)
 
     pygame.quit()
+
+
+def test_demo_mode_graph_layout_keeps_all_explored_nodes() -> None:
+    pygame.init()
+    board = next(board for board in load_puzzle_library() if board.metadata.get("id") == "hard_escape")
+    demo = DemoMode(board, board.metadata["name"])
+    demo.start_demo()
+    assert demo.result is not None
+    assert len(demo.graph_sample_keys) == len(demo.result.exploration_order)
+    pygame.quit()
