@@ -48,22 +48,22 @@
       "best_moves": 5,
       "best_time": 4.333,
       "last_result": {
-        "timestamp": "2026-04-22T21:49:14",
+        "timestamp": "2026-04-25T21:56:56",
         "puzzle_id": "gridlock",
         "solved": true,
         "moves": 5,
-        "elapsed_seconds": 4.333
+        "elapsed_seconds": 4.803
       }
     },
     "hard_escape": {
       "best_moves": 11,
-      "best_time": 8.685,
+      "best_time": 5.416,
       "last_result": {
-        "timestamp": "2026-04-24T20:01:24",
+        "timestamp": "2026-04-25T21:57:07",
         "puzzle_id": "hard_escape",
         "solved": true,
         "moves": 11,
-        "elapsed_seconds": 8.685
+        "elapsed_seconds": 5.416
       }
     }
   },
@@ -249,6 +249,20 @@
       "solved": true,
       "moves": 7,
       "elapsed_seconds": 7.862
+    },
+    {
+      "timestamp": "2026-04-25T21:56:56",
+      "puzzle_id": "gridlock",
+      "solved": true,
+      "moves": 5,
+      "elapsed_seconds": 4.803
+    },
+    {
+      "timestamp": "2026-04-25T21:57:07",
+      "puzzle_id": "hard_escape",
+      "solved": true,
+      "moves": 11,
+      "elapsed_seconds": 5.416
     }
   ]
 }
