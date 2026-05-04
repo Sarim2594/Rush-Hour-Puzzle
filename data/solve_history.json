@@ -15,7 +15,7 @@
       "best_moves": 1,
       "best_time": 5.0,
       "last_result": {
-        "timestamp": "2026-04-25T16:42:05",
+        "timestamp": "2026-05-04T08:04:29",
         "puzzle_id": "already_one_move",
         "solved": true,
         "moves": 1,
@@ -263,6 +263,27 @@
       "solved": true,
       "moves": 11,
       "elapsed_seconds": 5.416
+    },
+    {
+      "timestamp": "2026-05-04T08:02:02",
+      "puzzle_id": "already_one_move",
+      "solved": true,
+      "moves": 1,
+      "elapsed_seconds": 5.0
+    },
+    {
+      "timestamp": "2026-05-04T08:03:42",
+      "puzzle_id": "already_one_move",
+      "solved": true,
+      "moves": 1,
+      "elapsed_seconds": 5.0
+    },
+    {
+      "timestamp": "2026-05-04T08:04:29",
+      "puzzle_id": "already_one_move",
+      "solved": true,
+      "moves": 1,
+      "elapsed_seconds": 5.0
     }
   ]
 }

@@ -1,14 +1,22 @@
 import json
+import tempfile
+from pathlib import Path
+import pytest
 
 import storage
 from board import Board
 
+@pytest.fixture
+def custom_tmp_path():
+    with tempfile.TemporaryDirectory() as d:
+        yield Path(d)
 
-def test_history_file_creation_and_update(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr(storage, "PUZZLES_DIR", tmp_path / "puzzles")
-    monkeypatch.setattr(storage, "CUSTOM_PUZZLES_DIR", tmp_path / "custom")
-    monkeypatch.setattr(storage, "DATA_DIR", tmp_path / "data")
-    monkeypatch.setattr(storage, "HISTORY_PATH", tmp_path / "data" / "solve_history.json")
+
+def test_history_file_creation_and_update(custom_tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(storage, "PUZZLES_DIR", custom_tmp_path / "puzzles")
+    monkeypatch.setattr(storage, "CUSTOM_PUZZLES_DIR", custom_tmp_path / "custom")
+    monkeypatch.setattr(storage, "DATA_DIR", custom_tmp_path / "data")
+    monkeypatch.setattr(storage, "HISTORY_PATH", custom_tmp_path / "data" / "solve_history.json")
 
     storage.ensure_storage()
     assert storage.HISTORY_PATH.exists()
@@ -22,11 +30,11 @@ def test_history_file_creation_and_update(tmp_path, monkeypatch) -> None:
     assert len(puzzle_history["entries"]) == 1
 
 
-def test_custom_puzzle_round_trip(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr(storage, "PUZZLES_DIR", tmp_path / "puzzles")
-    monkeypatch.setattr(storage, "CUSTOM_PUZZLES_DIR", tmp_path / "custom")
-    monkeypatch.setattr(storage, "DATA_DIR", tmp_path / "data")
-    monkeypatch.setattr(storage, "HISTORY_PATH", tmp_path / "data" / "solve_history.json")
+def test_custom_puzzle_round_trip(custom_tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(storage, "PUZZLES_DIR", custom_tmp_path / "puzzles")
+    monkeypatch.setattr(storage, "CUSTOM_PUZZLES_DIR", custom_tmp_path / "custom")
+    monkeypatch.setattr(storage, "DATA_DIR", custom_tmp_path / "data")
+    monkeypatch.setattr(storage, "HISTORY_PATH", custom_tmp_path / "data" / "solve_history.json")
 
     board = Board.from_dict(
         {
@@ -47,10 +55,10 @@ def test_custom_puzzle_round_trip(tmp_path, monkeypatch) -> None:
     assert json.loads(target.read_text())["id"] == "custom_case"
 
 
-def test_puzzle_library_is_sorted_by_difficulty_then_name(tmp_path, monkeypatch) -> None:
-    puzzles_dir = tmp_path / "puzzles"
-    custom_dir = tmp_path / "custom"
-    data_dir = tmp_path / "data"
+def test_puzzle_library_is_sorted_by_difficulty_then_name(custom_tmp_path, monkeypatch) -> None:
+    puzzles_dir = custom_tmp_path / "puzzles"
+    custom_dir = custom_tmp_path / "custom"
+    data_dir = custom_tmp_path / "data"
     monkeypatch.setattr(storage, "PUZZLES_DIR", puzzles_dir)
     monkeypatch.setattr(storage, "CUSTOM_PUZZLES_DIR", custom_dir)
     monkeypatch.setattr(storage, "DATA_DIR", data_dir)
