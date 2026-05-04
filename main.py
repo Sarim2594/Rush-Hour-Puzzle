@@ -33,6 +33,10 @@ from ui import (
 
 @dataclass
 class MenuScreen:
+    """
+    Represents the main menu screen of the game.
+    Provides navigation to other game modes like Play, Demo, Editor, and History.
+    """
     def __post_init__(self) -> None:
         labels_actions = [
             ("Play", "play"),
@@ -126,6 +130,10 @@ class MenuScreen:
 
 @dataclass
 class SolveHistoryScreen:
+    """
+    Displays the history of solved puzzles.
+    Shows statistics, past attempts, and best times for each puzzle.
+    """
     def __post_init__(self) -> None:
         self.back_button = Button("Back", pygame.Rect(60, 680, 120, 48), "back", fill=ACCENT)
         self.puzzle_scroll = 0
@@ -327,6 +335,10 @@ class SolveHistoryScreen:
 
 @dataclass
 class PuzzleSelectScreen:
+    """
+    Allows the user to select a puzzle to play or demo.
+    Displays available built-in and custom puzzles in a grid layout.
+    """
     mode_kind: str
 
     def __post_init__(self) -> None:
@@ -431,6 +443,10 @@ class PuzzleSelectScreen:
 
 
 def run() -> int:
+    """
+    Main entry point for the Rush Hour Puzzle Solver application.
+    Initializes the game window, handles the main event loop, and manages screen transitions.
+    """
     ensure_storage()
     pygame.init()
     pygame.display.set_caption("Rush Hour Puzzle Solver")

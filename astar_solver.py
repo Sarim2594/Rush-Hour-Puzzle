@@ -10,6 +10,9 @@ from board import Board, Move
 
 @dataclass(slots=True)
 class SolveResult:
+    """
+    Contains the outcome and statistics of an A* search execution.
+    """
     solved: bool
     moves: list[Move]
     explored_states: int
@@ -24,6 +27,9 @@ class SolveResult:
 
 
 def blocking_heuristic(board: Board) -> int:
+    """
+    Calculates a heuristic value for A* based on the number of vehicles blocking the red car from the exit.
+    """
     if board.is_goal():
         return 0
     return len(board.blocking_vehicles()) + 1
@@ -44,6 +50,10 @@ def reconstruct_path(
 
 
 def solve_astar(board: Board, *, capture_exploration: bool = False) -> SolveResult:
+    """
+    Solves the given Rush Hour board using the A* search algorithm.
+    Optionally captures the exploration order for visualization purposes.
+    """
     start_time = time.perf_counter()
     start_key = board.state_key()
 

@@ -34,6 +34,10 @@ from ui import (
 
 @dataclass
 class PlayMode:
+    """
+    Handles the interactive puzzle-solving gameplay.
+    Allows the user to drag vehicles, request hints, and automatically solve the puzzle.
+    """
     initial_board: Board
     puzzle_id: str
     puzzle_name: str

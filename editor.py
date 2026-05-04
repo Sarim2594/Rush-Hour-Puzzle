@@ -31,6 +31,10 @@ from ui import (
 
 @dataclass
 class EditorMode:
+    """
+    Provides an interactive interface for creating and editing custom Rush Hour puzzles.
+    Users can place, move, and remove vehicles, and save their creations.
+    """
     def _orientation_button_label(self) -> str:
         return f"Toggle ({self.pending_orientation})"
 

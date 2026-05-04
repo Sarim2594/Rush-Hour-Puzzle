@@ -24,6 +24,9 @@ DIFFICULTY_ORDER = {
 
 @dataclass(slots=True)
 class HistoryEntry:
+    """
+    Represents a single record of a puzzle attempt.
+    """
     timestamp: str
     puzzle_id: str
     solved: bool
@@ -32,6 +35,9 @@ class HistoryEntry:
 
 
 def ensure_storage() -> None:
+    """
+    Ensures that all necessary storage directories and files exist.
+    """
     PUZZLES_DIR.mkdir(exist_ok=True)
     CUSTOM_PUZZLES_DIR.mkdir(exist_ok=True)
     DATA_DIR.mkdir(exist_ok=True)
@@ -48,6 +54,10 @@ def load_board(path: Path) -> Board:
 
 
 def load_puzzle_library() -> list[Board]:
+    """
+    Loads all built-in and custom puzzles from the storage directories.
+    Returns a list of Board objects sorted by difficulty and name.
+    """
     ensure_storage()
     boards: list[Board] = []
     for path in sorted(PUZZLES_DIR.glob("*.json")):

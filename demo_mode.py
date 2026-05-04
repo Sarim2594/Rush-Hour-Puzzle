@@ -34,6 +34,10 @@ StateKey = tuple[tuple[str, int, int], ...]
 
 @dataclass
 class DemoMode:
+    """
+    Provides a visual demonstration of the A* search algorithm solving a puzzle.
+    Displays the state graph, frontier, and plays back the optimal solution.
+    """
     initial_board: Board
     puzzle_name: str
 

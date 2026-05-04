@@ -48,6 +48,9 @@ VEHICLE_PALETTE = [
 
 
 def create_fonts() -> dict[str, pygame.font.Font]:
+    """
+    Creates and returns a dictionary of fonts used throughout the UI.
+    """
     return {
         "title": pygame.font.SysFont("segoeui", 34, bold=True),
         "heading": pygame.font.SysFont("Courier New", 24, bold=True),
@@ -81,6 +84,9 @@ def clamp(value: int, minimum: int, maximum: int) -> int:
 
 
 def get_screen_chrome(surface: pygame.Surface) -> ScreenChrome:
+    """
+    Calculates the standard margins, gaps, and content boundaries (chrome) for a given surface size.
+    """
     width, height = surface.get_size()
     margin = clamp(min(width, height) // 24, 20, 46)
     gap = clamp(min(width, height) // 38, 10, 24)
@@ -149,6 +155,9 @@ def draw_screen_title(
     title: str,
     subtitle: str | None = None,
 ) -> ScreenChrome:
+    """
+    Draws the main title and an optional subtitle at the top of the screen.
+    """
     chrome = get_screen_chrome(surface)
     draw_text(surface, fonts["title"], title, TEXT, (chrome.margin, chrome.header_y))
     if subtitle:

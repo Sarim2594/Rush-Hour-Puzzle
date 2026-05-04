@@ -11,6 +11,10 @@ RED_VEHICLE_ID = "X"
 
 @dataclass(frozen=True, slots=True)
 class Move:
+    """
+    Represents a single move of a vehicle on the board.
+    Includes the vehicle's identifier and the distance to move (positive or negative).
+    """
     vehicle_id: str
     distance: int
 
@@ -20,6 +24,10 @@ class Move:
 
 @dataclass(frozen=True, slots=True)
 class Vehicle:
+    """
+    Represents a vehicle on the puzzle board.
+    Stores its dimensions, orientation, and position.
+    """
     id: str
     row: int
     col: int
@@ -76,6 +84,10 @@ class Vehicle:
 
 
 class Board:
+    """
+    Manages the state of the Rush Hour puzzle board, including vehicle positions and legal moves.
+    Provides logic for validating moves, applying moves, and checking for the goal state.
+    """
     def __init__(self, vehicles: Iterable[Vehicle], *, metadata: dict | None = None):
         vehicle_list = list(vehicles)
         if not vehicle_list:
